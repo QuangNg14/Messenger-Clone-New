@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Button, Dropdown, DropdownButton } from 'react-bootstrap';
 import { useDispatch, useSelector } from 'react-redux';
-import { getRealTimeConversations, getRealTimeUsers, createMessage } from '../../actions';
+import { getRealTimeConversations, getRealTimeUsers, createMessage, getRealTimeConversationsGroups, createMessageGroup } from '../../actions';
 import { useAuth } from '../contexts/AuthContext';
 import Header from './header/header';
 import Picker from 'emoji-picker-react';
@@ -11,6 +11,7 @@ import { db } from '../../services/firebase';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCoffee, faReply } from '@fortawesome/free-solid-svg-icons'
 import './HomePage.css';
+import firebase from "firebase"
 
 const useStyles = makeStyles((theme) => ({
   paper: {
@@ -34,7 +35,7 @@ const User = (props) => {
     if (id) {
       db.collection("users").doc(id).get().then((doc) => {
         if (doc.data().profileImage) {
-          console.log(doc.data().profileImage)
+          // console.log(doc.data().profileImage)
           setProfileImageUrl(doc.data().profileImage)
         }
       })
@@ -55,12 +56,44 @@ const User = (props) => {
   )
 }
 
+const UserGroups = (props) => {
+  const { group, userGroups, onClick, userDocIds, id } = props
+  const [profileImageUrl, setProfileImageUrl] = useState("")
+  const [invalidate5, setInvalidate5] = useState(true)
+
+  // useEffect(() => {
+  //   if (id) {
+  //     db.collection("users").doc(id).get().then((doc) => {
+  //       if (doc.data().profileImage) {
+  //         console.log(doc.data().profileImage)
+  //         setProfileImageUrl(doc.data().profileImage)
+  //       }
+  //     })
+  //     setInvalidate5(false)
+  //   }  
+  // }, [id, invalidate5]);
+  return (
+    <div onClick={() => onClick(group)} className="displayName">
+      <div className="displayPic">
+        <img src={profileImageUrl} alt="" />
+      </div>
+      <div style={{ display: "flex", flex: 1, justifyContent: 'space-between', margin: '0 10px' }}>
+        <span style={{ fontWeight: 500 }}>{userGroups.conversationName}</span>
+        {/* <span className={user.isOnline ? "onlineStatus" : "onlineStatus off"}>
+        </span> */}
+      </div>
+    </div>
+  )
+}
+
+
 const HomePage = (props) => {
   const dispatch = useDispatch()
   const { currentUser } = useAuth()
   const [invalidate, setInvalidate] = useState(true)
   const [invalidate2, setInvalidate2] = useState(true)
   const [invalidate4, setInvalidate4] = useState(true)
+  const [invalidate5, setInvalidate5] = useState(true)
   const [chatStarted, setChatStarted] = useState(false)
   const [chatUser, setChatUser] = useState('')
   const [message, setMessage] = useState('')
@@ -76,8 +109,17 @@ const HomePage = (props) => {
   const [friendListName, setFriendListName] = useState([])
   const [tagInput, setTagInput] = useState("")
   const [tags, setTags] = useState([])
+  const [tagsId, setTagsId] = useState([docId])
   const [selectedValue, setSelectedValue] = useState("")
-
+  const [groups, setGroups] = useState([])
+  const [chatGroup, setChatGroup] = useState(false)
+  const [userDocIds, setUserDocIds] = useState([])
+  const [currentConversationName, setCurrentConversationName] = useState("")
+  const [currentConversationUsernames, setCurrentConversationUsernames] = useState([])
+  const [currentGroupId, setCurrentGroupId] = useState("")
+  const [profileImageUrl, setProfileImageUrl] = useState("")
+  const [invalidate6, setInvalidate6] = useState(true)
+  const [open3, setOpen3] = useState(false)
   const classes = useStyles()
 
   const messageEl = useRef(null);
@@ -97,7 +139,6 @@ const HomePage = (props) => {
     if (docId) {
       db.collection("users").doc(docId).get().then((doc) => {
         if (doc.data().friendList) {
-          console.log(doc.data().friendList)
           setFriendList(doc.data().friendList)
         }
       })
@@ -115,7 +156,6 @@ const HomePage = (props) => {
           newFriendListName.push(`${doc.data().firstName + doc.data().lastName}`)
         }
       })
-      console.log(newFriendLists)
       setNewCurrentFriendList(newFriendLists)
       setFriendListName(newFriendListName)
     })
@@ -143,18 +183,53 @@ const HomePage = (props) => {
     }
   }, [invalidate]);
 
+  useEffect(() => {
+    const newGroups = []
+    db.collection("groups").get().then((data) => {
+      data.docs.map((doc) => {
+        newGroups.push({ id: doc.id, data: doc.data() })
+      })
+    })
+    setGroups(newGroups)
+    setInvalidate5(false)
+  }, [invalidate5]);
+
+  useEffect(() => {
+    if (docId && invalidate6) {
+      db.collection("users").doc(docId).get().then((doc) => {
+        if (doc.data().profileImage) {
+          // console.log(doc.data().profileImage)
+          setProfileImageUrl(doc.data().profileImage)
+        }
+      })
+      setInvalidate6(false)
+    }
+  }, [docId, invalidate6]);
+
   const initChat = (user) => {
     setChatStarted(true)
+    setChatGroup(false)
     setChatUser(`${user.firstName} ${user.lastName}`)
     setUserUid(user.uid)
     dispatch(getRealTimeConversations({ uid_1: currentUser.uid, uid_2: user.uid }))
     console.log(user)
   }
 
+  const initGroup = (group) => {
+    setCurrentConversationName(group.data.conversationName)
+    setCurrentConversationUsernames(group.data.conversationMembers)
+    setChatUser(`${group.data.conversationName}: ${group.data.conversationMembers.map((name) => { return name })}`)
+    setUserDocIds(group.data.user_uids)
+    setCurrentGroupId(group.id)
+    setChatStarted(true)
+    dispatch(getRealTimeConversationsGroups(group.data))
+    setChatGroup(true)
+  }
+
   const sendMessage = (e) => {
     e.preventDefault()
     const messageObject = {
-      user_uid_1: currentUser.uid,
+      user_uid_1: currentUser.uid, //dùng uid
       user_uid_2: userUid,
       message: message,
       haveReply: replyMessage ? true : false,
@@ -169,9 +244,35 @@ const HomePage = (props) => {
     setReplyMessage("")
   }
 
+  const sendMessageConversation = (e) => {
+    e.preventDefault()
+    const messageObject = {
+      user_uids: userDocIds,
+      message: message,
+      sender: docId, // dùng docId
+      haveReply: replyMessage ? true : false,
+      replyMessage: replyMessage,
+      conversationName: currentConversationName,
+      currentConversationUsernames: currentConversationUsernames,
+      profileImage: profileImageUrl,
+      senderName: currentUser.displayName
+    }
+    console.log(messageObject)
+    if (message) {
+      dispatch(createMessageGroup(messageObject))
+        .then(() => {
+          setMessage('')
+        })
+    }
+    setReplyMessage("")
+  }
+
   const handleOnKeyDown = (e) => {
-    if (e.key === 'Enter') {
+    if (e.key === 'Enter' && !chatGroup) {
       sendMessage(e)
+    }
+    else if (e.key === 'Enter' && chatGroup) {
+      sendMessageConversation(e)
     }
   }
 
@@ -187,6 +288,12 @@ const HomePage = (props) => {
     })
   }
 
+  const handleReplyMessGroup = (id) => {
+    db.collection("conversationsGroup").doc(id).get().then((doc) => {
+      setReplyMessage(doc.data().message)
+    })
+  }
+
   const handleExitReply = () => {
     setReplyMessage("")
   }
@@ -194,11 +301,20 @@ const HomePage = (props) => {
   const handleCreateGroupModal = (e) => {
     e.preventDefault()
     setOpen2(true)
+    setConverName("")
+    setTagsId([docId])
+    setTags([currentUser.displayName])
   }
 
   const removeTag = (i) => {
     const newTags = [...tags]
     newTags.splice(i, 1)
+    const newTagsData = newCurrentFriendList.filter((friend) => newTags.includes(friend.data.firstName + friend.data.lastName))
+    let newTagsId = newTagsData.map((tag) => tag.id)
+    if (!newTagsId.includes(docId)) {
+      newTagsId.push(docId)
+    }
+    setTagsId(newTagsId)
     setTags(newTags)
   }
 
@@ -209,10 +325,48 @@ const HomePage = (props) => {
         return;
       }
       setTags([...tags, val]);
+      const idOfNewMember = newCurrentFriendList.find((friend) => friend.data.firstName + friend.data.lastName === val).id
+      if (!tagsId.includes(docId)) {
+        setTagsId([...tagsId, docId])
+      }
+      if (!tagsId.includes(idOfNewMember)) {
+        setTagsId([...tagsId, idOfNewMember])
+      }
       setTagInput("");
     } else if (e.key === 'Backspace' && !val) {
       removeTag(tags.length - 1);
+      //remove id from tagsId
     }
+  }
+
+  const createNewConversationGroup = async (e) => {
+    if (!tags.includes(currentUser.displayName)) {
+      setTags([...tags, currentUser.displayName])
+    }
+    await db.collection("groups").add({
+      user_uids: tagsId,
+      conversationName: converName,
+      createdAt: new Date(),
+      conversationMembers: tags
+    })
+    setOpen2(false)
+  }
+
+  const handleOpenModal = (e) => {
+    e.preventDefault()
+    setOpen3(true)
+    setTagsId([])
+    setTags([])
+  }
+
+  const addMemberToGroups = async () => {
+    await db.collection("groups").doc(currentGroupId).update({
+      conversationMembers: currentConversationUsernames && currentConversationUsernames.concat(tags)
+    })
+
+    await db.collection("groups").doc(currentGroupId).update({
+      user_uids: userDocIds && userDocIds.concat(tagsId)
+    })
   }
 
   return (
@@ -220,6 +374,7 @@ const HomePage = (props) => {
       <Header />
       <div className="containers">
         <div className="listOfUsers">
+          <h3>Conversations</h3>
           <div>
             {
               newCurrentFriendList && newCurrentFriendList.map((user) => {
@@ -229,14 +384,26 @@ const HomePage = (props) => {
               })
             }
           </div>
-          <button onClick={handleCreateGroupModal} style={{ height: 50 }}>Create a new group</button>
+          <h3>Groups</h3>
+          <div>
+            {
+              groups && groups.map((group) => {
+                if (group.data.user_uids.includes(docId)) {
+                  return (
+                    <UserGroups group={group} userDocIds={group.data.user_uids} id={group.id} userGroups={group.data} onClick={initGroup} />
+                  )
+                }
+              })
+            }
+          </div>
+          <button onClick={(e) => handleCreateGroupModal(e)} style={{ height: 50 }}>Create a new group</button>
 
           <Modal
             open={open2}
             onClose={() => setOpen2(false)}
           >
             <div>
-            <input style={{ width: 500 }} list="friendlist" type="text" placeholder="Enter conversation's name" value={converName} onChange={(e) => setConverName(e.target.value)} />
+              <input style={{ width: 500 }} list="friendlist" type="text" placeholder="Enter conversation's name" value={converName} onChange={(e) => setConverName(e.target.value)} />
               <div className="input-tag">
                 <ul className="input-tag__tags">
                   {tags.map((tag, i) => (
@@ -255,6 +422,7 @@ const HomePage = (props) => {
                 id="friendlist"
                 value={selectedValue}
                 onChange={(e) => handleSelect(e)}
+                onSelect={(e) => handleSelect(e)}
               >
                 {friendListName
                   .filter((friend) => friend.toLowerCase().includes(tagInput.toLowerCase()))
@@ -265,6 +433,7 @@ const HomePage = (props) => {
                   })
                 }
               </datalist>
+              <Button onClick={createNewConversationGroup}>Create</Button>
             </div>
           </Modal>
 
@@ -272,13 +441,59 @@ const HomePage = (props) => {
         <div className="chatArea">
           <div className="chatHeader">
             {
-              chatStarted ? chatUser : ""
+              chatGroup ?
+                chatStarted ?
+                  (<div className="chatHeaderGroup">
+                    <div>{chatUser}</div>
+                    <Button onClick={handleOpenModal}>Add member</Button>
+                    <Modal
+                      open={open3}
+                      onClose={() => setOpen3(false)}
+                    >
+                      <div>
+                        <div className="input-tag">
+                          <ul className="input-tag__tags">
+                            {tags.map((tag, i) => (
+                              <li key={tag}>
+                                {tag}
+                                <button type="button" onClick={() => removeTag(i)}>x</button>
+                              </li>
+                            ))}
+                            <li className="input-tag__tags__input">
+                              <input style={{ width: 500 }} onKeyDown={(e) => handleSelect(e)} list="friendlist" type="text" placeholder="Enter new member's name" value={tagInput} onChange={(e) => setTagInput(e.target.value)} />
+                            </li>
+                          </ul>
+                        </div>
+
+                        <datalist
+                          id="friendlist"
+                          value={selectedValue}
+                          onChange={(e) => handleSelect(e)}
+                          onSelect={(e) => handleSelect(e)}
+                        >
+                          {friendListName
+                            .filter((friend) => friend.toLowerCase().includes(tagInput.toLowerCase()))
+                            .map((friend) => {
+                              if (currentConversationUsernames && !currentConversationUsernames.includes(friend)){
+                                return (
+                                  <option value={friend}>{friend}</option>
+                                )
+                              }
+                            })
+                          }
+                        </datalist>
+                        <Button onClick={addMemberToGroups}>Add</Button>
+                      </div>
+                    </Modal>
+                  </div>)
+                  : ""
+                : chatStarted ? chatUser : ""
             }
           </div>
 
           <div className="messageSections" ref={messageEl}>
             {
-              chatStarted ?
+              (chatStarted && !chatGroup) ?
                 user.conversations && user.conversations.map((conver) => {
                   return (
                     <div style={{ textAlign: conver.conver.user_uid_1 == currentUser.uid ? 'right' : "left" }}>
@@ -300,7 +515,14 @@ const HomePage = (props) => {
                           :
                           (
                             <div>
-                              <div className={conver.conver.user_uid_1 == currentUser.uid ? "messageStyle" : "messageStyleWhite"} >{conver.conver.message}</div>
+                              <div className={conver.conver.user_uid_1 == currentUser.uid ? "messageStyle" : "messageStyleWhite"} >
+                                {conver.conver.haveReply ? (
+                                  <div className="chatReplyMessage">
+                                    {conver.conver.replyMessage}
+                                  </div>
+                                ) : null}
+                                {conver.conver.message}
+                              </div>
                               <FontAwesomeIcon onClick={() => handleReplyMess(conver.id)} icon={faReply} />
                             </div>
                           )
@@ -308,7 +530,58 @@ const HomePage = (props) => {
                     </div>
                   )
                 })
-                : null
+                : (
+                  user.conversationsGroup && user.conversationsGroup.map((conver) => {
+                    return (
+                      <div style={{ textAlign: conver.conver.sender == docId ? 'right' : "left" }}>
+                        {
+                          conver.conver.sender == docId ?
+                            (
+                              <div className="messageWrapper">
+                                <div className="messageSenderRight">{conver.conver.senderName}</div>
+                                <div className="messageContainerCurrent">
+                                  <FontAwesomeIcon onClick={() => handleReplyMessGroup(conver.id)} icon={faReply} />
+                                  <div className={conver.conver.sender == docId ? "messageStyle" : "messageStyleWhite"} >
+                                    {conver.conver.haveReply ? (
+                                      <div className="chatReplyMessage">
+                                        {conver.conver.replyMessage}
+                                      </div>
+                                    ) : null}
+                                    {conver.conver.message}
+                                  </div>
+                                  <div className="displayPicSmall">
+                                    <img src={conver.conver.profileImage} alt="" />
+                                  </div>
+                                </div>
+                              </div>
+                            )
+                            :
+                            (
+                              <div className="messageWrapper">
+                                <div className="messageSenderLeft">{conver.conver.senderName}</div>
+                                <div className="messageContainer">
+                                  <div className="displayPicSmall">
+                                    <img src={conver.conver.profileImage} alt="" />
+                                  </div>
+
+                                  <div className={conver.conver.sender == docId ? "messageStyle" : "messageStyleWhite"} >
+                                    {conver.conver.haveReply ? (
+                                      <div className="chatReplyMessage">
+                                        {conver.conver.replyMessage}
+                                      </div>
+                                    ) : null}
+                                    {conver.conver.message}
+                                  </div>
+
+                                  <FontAwesomeIcon onClick={() => handleReplyMessGroup(conver.id)} icon={faReply} />
+                                </div>
+                              </div>
+                            )
+                        }
+                      </div>
+                    )
+                  })
+                )
             }
           </div>
 
@@ -343,7 +616,7 @@ const HomePage = (props) => {
                     </div>
                   </Modal>
                   <Button className="button" onClick={() => setOpen(true)}>Emo</Button>
-                  <Button className="button" onClick={sendMessage}>Send</Button>
+                  <Button className="button" onClick={chatGroup ? sendMessageConversation : sendMessage}>Send</Button>
                 </div>
               </div>
               : null

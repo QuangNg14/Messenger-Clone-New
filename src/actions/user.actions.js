@@ -13,7 +13,6 @@ export const getRealTimeUsers = (uid) => {
           users.push(doc.data())
         }
       })
-      console.log(users)
       dispatch({
         type: `${userConstants.GET_REALTIME_USERS}_SUCCESS`,
         payload: {users: users}        
@@ -31,7 +30,24 @@ export const createMessage = (messageObject) =>{
       createdAt: new Date()
     })
     .then((data) => {
-      console.log(data)
+      // console.log(data)
+      //success
+    })
+    .catch((err) => {
+      console.log(err)
+    })
+  }
+}
+
+export const createMessageGroup = (messageObject) =>{
+  return async (dispatch) => {
+    db.collection("conversationsGroup").add({
+      ...messageObject,
+      isView: false,
+      createdAt: new Date()
+    })
+    .then((data) => {
+      // console.log(data)
       //success
     })
     .catch((err) => {
@@ -72,4 +88,42 @@ export const getRealTimeConversations = (user) =>{
       })
     })
   }
+}
+
+export const getRealTimeConversationsGroups = (userGroups) => {
+  return async (dispatch) => {
+    db.collection("conversationsGroup")
+      .where("conversationName", "==", userGroups.conversationName)
+      .orderBy("createdAt", "asc")
+      .onSnapshot((snapShot)=>{
+        const conversationsGroup = []
+        snapShot.docs.map((doc) => {
+          // console.log(doc.data())
+          if(userGroups.user_uids.includes(doc.data().sender)){
+            conversationsGroup.push({id: doc.id, conver: doc.data()})
+          }
+          if(conversationsGroup.length > 0){
+            dispatch({
+              type: userConstants.GET_REALTIME_MESSAGES_GROUP,
+              payload: { conversationsGroup }
+            })
+          }
+          else{
+            dispatch({
+              type: `${userConstants.GET_REALTIME_MESSAGES_GROUP}_FAILURE`,
+              payload: { conversationsGroup }
+            })
+          }
+        })
+        // console.log(userGroups.user_uids)
+        // console.log(conversationsGroup)
+      })
+  }
+}
+
+function arrayEquals(a, b) {
+  return Array.isArray(a) &&
+    Array.isArray(b) &&
+    a.length === b.length &&
+    a.every((val, index) => val === b[index]);
 }
