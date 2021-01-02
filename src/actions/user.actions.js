@@ -99,9 +99,9 @@ export const getRealTimeConversationsGroups = (userGroups) => {
         const conversationsGroup = []
         snapShot.docs.map((doc) => {
           // console.log(doc.data())
-          if(userGroups.user_uids.includes(doc.data().sender)){
+          // if(userGroups.user_uids.includes(doc.data().sender)){
             conversationsGroup.push({id: doc.id, conver: doc.data()})
-          }
+          // }
           if(conversationsGroup.length > 0){
             dispatch({
               type: userConstants.GET_REALTIME_MESSAGES_GROUP,

@@ -66,7 +66,7 @@ const Header = () => {
             {
               currentUser ?
               <li>
-                <Button onClick={handleLogout}>Logout</Button>
+                <Button style={{backgroundColor: "black"}} onClick={handleLogout}>Logout</Button>
             </li> : null
             } 
         </ul>

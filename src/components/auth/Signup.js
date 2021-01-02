@@ -61,8 +61,8 @@ const Signup = () => {
     setLoading(false)
   }
   return (
-    <>
-      <Card>
+    <div className="loginWrap">
+      <Card style={{width: 500, height: 600}}>
         <Card.Body>
         <h2 className="text-center mb-4">Sign Up</h2>
         {currentUser && currentUser.email}
@@ -99,12 +99,12 @@ const Signup = () => {
           </Button>
         </Form>
 
+        <div className="w-100 text-center mt-2">
+          Already have an account? <Link to="/login">Log in</Link>
+        </div>
         </Card.Body>
       </Card>
-      <div className="w-100 text-center mt-2">
-        Already have an account? <Link to="/login">Log in</Link>
-      </div>
-    </>
+    </div>
   );
 }
 

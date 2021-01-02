@@ -43,8 +43,11 @@ const Login = () => {
   }
 
   return (
-    <>
-      <Card>
+    <div className="loginWrap">
+      <h2 style={{marginBottom: 50}}>Welcome to Messenger Clone</h2> 
+      <h4 style={{marginBottom: 40}}>Product by Quang Nguyen</h4> 
+
+      <Card style={{width: 400, height: 400}}>
         <Card.Body>
           <h2 className="text-center mb-4">Log in</h2>
           {error && <Alert variant="danger">{error}</Alert>}
@@ -69,12 +72,12 @@ const Login = () => {
             <Link to="/forgot-password">Forgot Password</Link>
           </div>
 
+          <div className="w-100 text-center mt-2">
+            Need an account? <Link to="/signup">Sign up</Link>
+          </div>
         </Card.Body>
       </Card>
-      <div className="w-100 text-center mt-2">
-        Need an account? <Link to="/signup">Sign up</Link>
-      </div>
-    </>
+    </div>
   );
 }
 

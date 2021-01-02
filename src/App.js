@@ -14,7 +14,7 @@ import HomePage from './components/chat/HomePage';
 const App = () => {
   return (
     <div 
-      className="d-flex justify-content-center"
+      className="d-flex"
       style = {{minHeight:"100vh", height:"auto"}}
     >
       <div className="w-100">
@@ -27,7 +27,6 @@ const App = () => {
             <Route path="/login" component={Login}/>
             <Route path="/todolist" component={TodoList}/>
             <Route path="/forgot-password" component={ForgotPassword}/>
-
           </Switch>
         </AuthProvider>
       </div>

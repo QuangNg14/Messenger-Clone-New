@@ -3,11 +3,56 @@ import { Alert, Button, Card } from "react-bootstrap"
 import { useAuth } from "../contexts/AuthContext"
 import { Link, useHistory } from "react-router-dom"
 import Header from '../chat/header/header';
+import Modal from '@material-ui/core/Modal';
 import { db, storage } from '../../services/firebase';
+import { makeStyles } from '@material-ui/core';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faCoffee, faReply } from '@fortawesome/free-solid-svg-icons'
+import { faCoffee, faReply, faTimesCircle, faUserPlus, faCheck, faTimes } from '@fortawesome/free-solid-svg-icons'
 import firebase from "firebase"
 import "./Dashboard.css"
+
+
+const useStyles = makeStyles((theme) => ({
+  paper: {
+    position: "absolute",
+    bottom: "10%",
+    right: 250,
+    width: "auto",
+    backgroundColor: theme.palette.background.paper,
+    border: '2px solid #000',
+    padding: theme.spacing(2, 4, 3),
+  },
+  root3: {
+    flexGrow: 1,
+    minWidth: 300,
+  },
+  modal3: {
+    display: 'flex',
+    padding: theme.spacing(1),
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 300,
+    // height: 300
+  },
+  paper2: {
+    width: 500,
+    height: 500,
+    alignItems: "center",
+    backgroundColor: theme.palette.background.paper,
+    border: '2px solid #000',
+    boxShadow: theme.shadows[5],
+    padding: theme.spacing(2, 4, 3),
+  },
+  paper4: {
+    width: 500,
+    height: 500,
+    alignItems: "center",
+    backgroundColor: theme.palette.background.paper,
+    border: '2px solid #000',
+    boxShadow: theme.shadows[5],
+    padding: theme.spacing(2, 4, 3),
+  },
+}));
 
 const User = (props) => {
   const { id, user, docId } = props
@@ -57,6 +102,16 @@ const User = (props) => {
     await db.collection("users").doc(docId).update({
       pendingFriends: pendingFriends.filter((friendId) => friendId != id)
     })
+
+    await db.collection("users").doc(id).update({
+      sentFriendRequests: sentFriendRequests.filter((friendId) => friendId != docId)
+    })
+
+    await db.collection("users").doc(docId).update({
+      sentFriendRequests: sentFriendRequests.filter((friendId) => friendId != id)
+    })
+    setPendingFriends([])
+    setSentFriendRequests([])
     console.log("Accepted", id)
   }
 
@@ -72,23 +127,36 @@ const User = (props) => {
 
   return (
     <Card>
-      <Card.Body>
+      <Card.Body style={{width: "50%"}}>
         <div className="user-card">
           <div className="profile-image">
+          <img
+              src={user.profileImage}
+              style={{
+                width: 70,
+                height: 70,
+                objectFit: "cover",
+                borderRadius: 35,
+                position: "relative",
+                top: "20%"
+              }}
+            />
           </div>
-          <div className="name">
-            Name: {user.firstName} {user.lastName}
+          <div style={{marginLeft: 30, marginRight: 30}}>
+            <div className="name">
+              <strong>Name: {user.firstName} {user.lastName}</strong>
+            </div>
+       {/* <div className="email">
+              <strong>Email: {user.email}</strong>
+            </div>
+      */}
           </div>
 
-          <div className="email">
-            Email: {user.email}
-          </div>
-
-          <FontAwesomeIcon icon={faReply} />
+          {/* <FontAwesomeIcon icon={faReply} /> */}
           {
             sentFriendRequests && sentFriendRequests.includes(id) ?
               (
-                <button onClick={() => handleAddFriend(id)} disabled={true}>Pending</button>
+                <Button onClick={() => handleAddFriend(id)} disabled={true}>Pending</Button>
               )
               :
               (
@@ -96,14 +164,20 @@ const User = (props) => {
                   {pendingFriends && pendingFriends.includes(id) ?
                     (
                       <>
-                        <button onClick={() => handleAcceptFriend(id)}>Accept</button>
-                        <button onClick={() => handleDeclineFriend(id)}>Decline</button>
+                        <Button onClick={() => handleAcceptFriend(id)}>
+                          <FontAwesomeIcon icon={faCheck}/>
+                        </Button>
+                        <Button onClick={() => handleDeclineFriend(id)}>
+                          <FontAwesomeIcon icon={faTimes}/>
+                        </Button>
                       </>
                     )
                     :
                     (
                       <>
-                        <button onClick={() => handleAddFriend(id)} disabled={pending}>{pending ? "Pending" : "Add Friend"}</button>
+                        <Button onClick={() => handleAddFriend(id)} disabled={pending}>{pending ? "Pending" : (
+                          <FontAwesomeIcon icon={faUserPlus}/>
+                        )}</Button>
                       </>
                     )
                   }
@@ -117,8 +191,9 @@ const User = (props) => {
 }
 
 const Friend = (props) => {
-  const { friendId } = props
+  const { friendId, docId, friendList } = props
   const [friendProfile, setFriendProfile] = useState({})
+
   useEffect(() => {
     db.collection("users").doc(friendId).get().then((doc) => {
       if (doc) {
@@ -128,22 +203,36 @@ const Friend = (props) => {
     })
   }, []);
 
-  return (
-    <Card>
-      <Card.Body>
-        <div className="user-card">
-          <div className="profile-image">
-          </div>
-          <div className="name">
-            Name: {friendProfile.firstName} {friendProfile.lastName}
-          </div>
 
-          <div className="email">
-            Email: {friendProfile.email}
-          </div>
-        </div>
-      </Card.Body>
-    </Card>
+  const handleRemoveFriend = (e) => {
+    e.preventDefault()
+    console.log(friendList)
+    db.collection("users").doc(docId).update({
+      friendList: friendList.filter((friend) => friend != friendId)
+    })
+
+    db.collection("users").doc(friendId).update({
+      friendList: friendList.filter((friend) => friend != docId)
+    })
+  }
+
+  return (
+    <div className="friend-info">
+      <img
+        src={friendProfile.profileImage}
+        style={{
+          width: 40,
+          height: 40,
+          borderRadius: 20,
+        }}
+      />
+      <div style={{ marginLeft: 15 }} className="name">
+        {friendProfile.firstName} {friendProfile.lastName}
+      </div>
+      <div onClick={(e) => handleRemoveFriend(e)}>
+        <FontAwesomeIcon icon={faTimesCircle} />
+      </div>
+    </div>
   )
 }
 
@@ -163,19 +252,21 @@ const Dashboard = () => {
   const allInputs = { imgUrl: '' }
   const [imageAsFile, setImageAsFile] = useState('')
   const [imageAsUrl, setImageAsUrl] = useState(allInputs)
-  const [profileImageUrl, setProfileImageUrl] = useState("") 
-  const [invalidate5, setInvalidate5] = useState(true) 
-
+  const [profileImageUrl, setProfileImageUrl] = useState("")
+  const [invalidate5, setInvalidate5] = useState(true)
+  const [open, setOpen] = useState(false)
+  const classes = useStyles()
+  const history = useHistory()
   useEffect(() => {
-    if(docId){
-        db.collection("users").doc(docId).get().then((doc)=>{
-          if(doc.data().profileImage){
-            console.log(doc.data().profileImage)
-            setProfileImageUrl(doc.data().profileImage)
-          }
-        })
-        setInvalidate5(false)
-      }
+    if (docId) {
+      db.collection("users").doc(docId).get().then((doc) => {
+        if (doc.data().profileImage) {
+          console.log(doc.data().profileImage)
+          setProfileImageUrl(doc.data().profileImage)
+        }
+      })
+      setInvalidate5(false)
+    }
   }, [docId, invalidate5, imageAsUrl]);
 
   useEffect(() => {
@@ -225,10 +316,10 @@ const Dashboard = () => {
 
   useEffect(() => {
     if (docId) {
-      db.collection("users").doc(docId).get().then((doc) => {
+      db.collection("users").doc(docId).onSnapshot((doc) => {
         if (doc.data().friendList) {
-          console.log(doc.data().friendList)
-          setFriendList(doc.data().friendList)
+          const filteredFriendList = doc.data().friendList.filter((friend) => friend != docId)
+          setFriendList(filteredFriendList)
         }
       })
       setInvalidate4(false)
@@ -260,67 +351,109 @@ const Dashboard = () => {
           })
         })
     })
+    setOpen(false)
+  }
+
+  const changeProfilePic = (e) => {
+    setOpen(true)
+  }
+
+  async function handleLogout(e){
+    setError('')
+
+    try{
+      await logout()
+      .then(() => {
+        db.collection("users").doc(docId).update({
+          isOnline: false
+        })
+      })
+      await localStorage.clear()
+      history.push('/login')
+    }
+    catch{
+      setError("Failed to log out")
+    }
   }
 
   return (
     <>
-      <Header />
-      <Card>
-        <Card.Body>
-          <h2 className="text-center mb-4">Profile</h2>
-          <strong>Profile Image: </strong>
-          <div style={{display:"flex", flexDirection:"row", justifyContent:"space-around"}}>
-            <div>
-              <input type="file" onChange={handleImageAsFile} />
-              <button onClick={handleFirebaseUpload}>Upload</button>
+      {/* <Header /> */}
+      <div className="card-container">
+        <div className="side-dashboard">
+          <div className="upper">
+            <div style={{ position: "relative", top: "10%" }}>
+              <div style={{ color: "white", fontSize: 25 }}><strong>{currentUser.displayName}</strong></div>
+              <div style={{ color: "grey", fontSize: 15 }}><strong>{currentUser.email}</strong></div>
             </div>
-            <div>
-              <img
-                  src={profileImageUrl}
-                  style={{
-                    width: 100,
-                    height: 100,
-                    borderRadius: 50,
-                    position: "absolute"
-                  }}
-                />
+            <img
+              src={profileImageUrl}
+              style={{
+                width: 100,
+                height: 100,
+                borderRadius: 50,
+                position: "relative",
+                top: "20%"
+              }}
+            />
+          </div>
+          <div className="lower">
+                <Modal
+                  open={open}
+                  onClose={() => setOpen(false)}
+                  className={classes.modal3}
+                >
+                  <div className={classes.paper4}>
+                    <input type="file" onChange={handleImageAsFile} />
+                    <button onClick={handleFirebaseUpload}>Upload</button>
+                  </div>
+                </Modal>
+            <div onClick={changeProfilePic} className="profile-pic hover">
+              <strong style={{ marginLeft: 20 }}>Change Profile Picture</strong>
             </div>
-          </div> 
-
-          <br></br>
-          <br></br>
-          {error && <Alert variant="danger">{error}</Alert>}
-          <strong>Email: </strong> {currentUser.email}
-          <br></br>
-          <strong>DisplayName: </strong> {currentUser.displayName}
-          <br></br>
-          <strong>FriendList: </strong>
-          <div className="pending-friend-list">
-            {friendList && friendList.map((friendId) => {
-              return (
-                <Friend friendId={friendId} />
-              )
+            <div className="chat hover">
+              <strong style={{ marginLeft: 20 }}>
+                <Link to="/chat" style={{ color: 'inherit', textDecoration: 'inherit' }}>Go to Messenger</Link>
+              </strong>
+            </div>
+            <div className="friend-list">
+              <strong style={{ marginLeft: 20, marginTop: 10, marginBottom: 10 }}>Friend List</strong>
+              <div>
+                {friendList && friendList.map((friendId) => {
+                  return (
+                    <Friend friendList={friendList} docId={docId} friendId={friendId} />
+                  )
+                })}
+              </div>
+            </div>
+            <div className="update-profile hover">
+              <span style={{ marginLeft: 20 }}>
+                <Link to="/update-profile" style={{ color: 'inherit', textDecoration: 'inherit' }}>Update Profile</Link>
+              </span>
+            </div>
+            
+            <div onClick={(e) => handleLogout(e)} className="logout hover">
+              <span style={{ marginLeft: 20 }}>Logout</span>
+            </div>
+          </div>
+        </div>
+        <div className="main-page">
+          <div className="heading">
+            <span style={{fontSize: 60}}>Welcome to Messenger</span>
+          </div>
+          <div className="userlist">
+            <div style={{height: 70, display:"flex", alignItems:"center"}}>
+              <strong style={{marginLeft: 30, fontSize: 40}}>List of all current users</strong>
+            </div>
+            {userList && userList.map((user) => {
+              if (!friendList.includes(user.id)) {
+                return (
+                  <User id={user.id} docId={docId} user={user.user} />
+                )
+              }
             })}
           </div>
-          {/* <strong>Friends List: {currentUser && currentUser.friendList.map((friend) => {
-            return (
-              <b>{friend.displayName}</b>
-            )
-          })}</strong>  */}
-          <Link to="/update-profile" className="btn btn-primary w-100 my-3">Update Profile</Link>
-          <Link to="/chat" className="btn btn-primary w-100 my-3">Go to Messenger</Link>
-          <Link to="/todolist" className="btn btn-primary w-100 my-3">Go to TodoList</Link>
-        </Card.Body>
-      </Card>
-
-      <div className="userlist">
-        {userList && userList.map((user) => {
-          if (!friendList.includes(user.id)) {
-            return (
-              <User id={user.id} docId={docId} user={user.user} />
-            )
-          }
-        })}
+        </div>
       </div>
       {/* <div className="w-100 text-center mt-2"> 
         <Button variant="link" onClick={handleLogout}>Log Out</Button>

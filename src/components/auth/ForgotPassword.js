@@ -28,8 +28,8 @@ const ForgotPassword = () => {
   }
   
   return (
-    <>
-      <Card>
+    <div className="loginWrap">
+      <Card style={{width: 400, height: 300}}>
         <Card.Body>
         <h2 className="text-center mb-4">Password Reset</h2>
         {error && <Alert variant="danger">{error}</Alert>}
@@ -54,7 +54,7 @@ const ForgotPassword = () => {
       <div className="w-100 text-center mt-2">
         Need an account? <Link to="/signup">Sign up</Link>
       </div>
-    </>
+    </div>
   );
 }
 

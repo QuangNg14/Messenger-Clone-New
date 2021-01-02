@@ -7,11 +7,12 @@ import Header from './header/header';
 import Picker from 'emoji-picker-react';
 import { makeStyles } from '@material-ui/core';
 import Modal from '@material-ui/core/Modal';
-import { db } from '../../services/firebase';
+import { db, storage } from '../../services/firebase';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faCoffee, faReply } from '@fortawesome/free-solid-svg-icons'
+import { faCoffee, faReply, faSmile, faPaperPlane } from '@fortawesome/free-solid-svg-icons'
 import './HomePage.css';
-import firebase from "firebase"
+import firebase from "firebase";
+import emoji from "emoji-dictionary";
 
 const useStyles = makeStyles((theme) => ({
   paper: {
@@ -23,6 +24,68 @@ const useStyles = makeStyles((theme) => ({
     border: '2px solid #000',
     padding: theme.spacing(2, 4, 3),
   },
+  root3: {
+    flexGrow: 1,
+    minWidth: 300,
+  },
+  modal3: {
+    display: 'flex',
+    padding: theme.spacing(1),
+    alignItems: 'center',
+    justifyContent: 'center',
+
+  },
+  paper3: {
+    width: 500,
+    height: 500,
+    alignItems: "center",
+    backgroundColor: theme.palette.background.paper,
+    border: '2px solid #000',
+    boxShadow: theme.shadows[5],
+    padding: theme.spacing(2, 4, 3),
+  },
+  modal2: {
+    display: 'flex',
+    padding: theme.spacing(1),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  paper2: {
+    width: 500,
+    height: 500,
+    alignItems: "center",
+    backgroundColor: theme.palette.background.paper,
+    border: '2px solid #000',
+    boxShadow: theme.shadows[5],
+    padding: theme.spacing(2, 4, 3),
+  },
+  paper4: {
+    width: 500,
+    height: 500,
+    alignItems: "center",
+    backgroundColor: theme.palette.background.paper,
+    border: '2px solid #000',
+    boxShadow: theme.shadows[5],
+    padding: theme.spacing(2, 4, 3),
+  },
+  paper5: {
+    width: "100%",
+    height: "70%",
+    alignItems: "center",
+    backgroundColor: theme.palette.background.paper,
+    border: '2px solid #000',
+    boxShadow: theme.shadows[5],
+    padding: theme.spacing(2, 4, 3),
+  },
+  paper6: {
+    height: 70,
+    width: 150,
+    backgroundColor: theme.palette.background.paper,
+    border: '2px solid #000',
+    boxShadow: theme.shadows[5],
+    padding: theme.spacing(2, 4, 3),
+    position: "relative"
+  }
 }));
 
 
@@ -57,30 +120,17 @@ const User = (props) => {
 }
 
 const UserGroups = (props) => {
-  const { group, userGroups, onClick, userDocIds, id } = props
+  const { groupImageUrl, group, userGroups, onClick, userDocIds, id } = props
   const [profileImageUrl, setProfileImageUrl] = useState("")
   const [invalidate5, setInvalidate5] = useState(true)
 
-  // useEffect(() => {
-  //   if (id) {
-  //     db.collection("users").doc(id).get().then((doc) => {
-  //       if (doc.data().profileImage) {
-  //         console.log(doc.data().profileImage)
-  //         setProfileImageUrl(doc.data().profileImage)
-  //       }
-  //     })
-  //     setInvalidate5(false)
-  //   }  
-  // }, [id, invalidate5]);
   return (
     <div onClick={() => onClick(group)} className="displayName">
       <div className="displayPic">
-        <img src={profileImageUrl} alt="" />
+        <img src={groupImageUrl} alt="" />
       </div>
       <div style={{ display: "flex", flex: 1, justifyContent: 'space-between', margin: '0 10px' }}>
         <span style={{ fontWeight: 500 }}>{userGroups.conversationName}</span>
-        {/* <span className={user.isOnline ? "onlineStatus" : "onlineStatus off"}>
-        </span> */}
       </div>
     </div>
   )
@@ -119,11 +169,35 @@ const HomePage = (props) => {
   const [currentGroupId, setCurrentGroupId] = useState("")
   const [profileImageUrl, setProfileImageUrl] = useState("")
   const [invalidate6, setInvalidate6] = useState(true)
-  const [open3, setOpen3] = useState(false)
+  const [open3, setOpen3] = useState(false) //add member to groups
+  const [groupInfo, setGroupInfo] = useState([])
+  const [invalidate7, setInvalidate7] = useState(false)
+  const [open4, setOpen4] = useState(false) //remove member from groups
+  const [open5, setOpen5] = useState(false)
+  const allInputs = { imgUrl: '' }
+  const [imageAsFile, setImageAsFile] = useState('')
+  const [imageAsUrl, setImageAsUrl] = useState(allInputs)
+  const [groupImageUrl, setGroupProfileImageUrl] = useState("")
+  const [invalidate8, setInvalidate8] = useState(true)
+  const [open6, setOpen6] = useState(false)
+  const [currentMessageEmoji, setCurrentMessageEmoji] = useState(false)
+  const [selectedEmoji, setSelectedEmoji] = useState("")
+  const [selectedEmojiOnDatabase, setSelectedEmojiOnDatabase] = useState("")
+  const [selectedEmojis, setSelectedEmojis] = useState({}) //get the emoji object on database
+  const [currentMessageEmojiGroup, setCurrentMessageEmojiGroup] = useState("")
+  const [currentKey, setCurrentKey] = useState("")
+  const [invalidate9, setInvalidate9] = useState(false)
+  const [selectedMember, setSelectedMember] = useState(false)
+
   const classes = useStyles()
+  const classesModal = useStyles()
 
   const messageEl = useRef(null);
   const user = useSelector(state => state.user)
+
+  function removeDuplicates(array) {
+    array.splice(0, array.length, ...(new Set(array)))
+  };
 
   useEffect(() => {
     if (invalidate2) {
@@ -184,13 +258,9 @@ const HomePage = (props) => {
   }, [invalidate]);
 
   useEffect(() => {
-    const newGroups = []
-    db.collection("groups").get().then((data) => {
-      data.docs.map((doc) => {
-        newGroups.push({ id: doc.id, data: doc.data() })
-      })
+    db.collection("groups").onSnapshot((data) => {
+      setGroups(data.docs.map((doc) => ({ id: doc.id, data: doc.data() })))
     })
-    setGroups(newGroups)
     setInvalidate5(false)
   }, [invalidate5]);
 
@@ -206,6 +276,21 @@ const HomePage = (props) => {
     }
   }, [docId, invalidate6]);
 
+  useEffect(() => {
+    removeDuplicates(groups)
+  }, [groups])
+
+  useEffect(() => {
+    if (currentGroupId) {
+      db.collection("groups").doc(currentGroupId).get().then((doc) => {
+        if (doc.data().groupImage) {
+          setGroupProfileImageUrl(doc.data().groupImage)
+        }
+      })
+      setInvalidate8(false)
+    }
+  }, [currentGroupId, invalidate8, imageAsUrl]);
+
   const initChat = (user) => {
     setChatStarted(true)
     setChatGroup(false)
@@ -216,13 +301,13 @@ const HomePage = (props) => {
   }
 
   const initGroup = (group) => {
+    dispatch(getRealTimeConversationsGroups(group.data))
     setCurrentConversationName(group.data.conversationName)
     setCurrentConversationUsernames(group.data.conversationMembers)
     setChatUser(`${group.data.conversationName}: ${group.data.conversationMembers.map((name) => { return name })}`)
     setUserDocIds(group.data.user_uids)
     setCurrentGroupId(group.id)
     setChatStarted(true)
-    dispatch(getRealTimeConversationsGroups(group.data))
     setChatGroup(true)
   }
 
@@ -318,9 +403,18 @@ const HomePage = (props) => {
     setTags(newTags)
   }
 
+  const removeTagGroup = (i) => {
+    const newTags = [...tags]
+    newTags.splice(i, 1)
+    const newTagsData = newCurrentFriendList.filter((friend) => newTags.includes(friend.data.firstName + friend.data.lastName))
+    let newTagsId = newTagsData.map((tag) => tag.id)
+    setTagsId(newTagsId)
+    setTags(newTags)
+  }
+
   const handleSelect = (e) => {
     const val = e.target.value
-    if (e.key === "Enter" && val) {
+    if (e.key === "Enter" && val && friendListName.includes(val)) {
       if (tags.find(tag => tag.toLowerCase() === val.toLowerCase())) {
         return;
       }
@@ -333,10 +427,18 @@ const HomePage = (props) => {
         setTagsId([...tagsId, idOfNewMember])
       }
       setTagInput("");
-    } else if (e.key === 'Backspace' && !val) {
-      removeTag(tags.length - 1);
+    }
+    if (e.key === 'Backspace' && !val) {
+      if (tags[tags.length - 1] != currentUser.displayName) {
+        removeTag(tags.length - 1);
+      }
       //remove id from tagsId
     }
+  }
+
+  const handleSelectFromDataList = (e) => {
+    console.log("selected")
+    setSelectedMember(true)
   }
 
   const createNewConversationGroup = async (e) => {
@@ -347,19 +449,25 @@ const HomePage = (props) => {
       user_uids: tagsId,
       conversationName: converName,
       createdAt: new Date(),
-      conversationMembers: tags
+      conversationMembers: tags,
+      adminGroup: docId
     })
     setOpen2(false)
   }
 
-  const handleOpenModal = (e) => {
+  const handleOpenModalAdd = (e) => {
     e.preventDefault()
     setOpen3(true)
     setTagsId([])
     setTags([])
   }
 
-  const addMemberToGroups = async () => {
+  const handleOpenModalRemove = (e) => {
+    e.preventDefault()
+    setOpen4(true)
+  }
+
+  const addMemberToGroups = async (group) => {
     await db.collection("groups").doc(currentGroupId).update({
       conversationMembers: currentConversationUsernames && currentConversationUsernames.concat(tags)
     })
@@ -367,6 +475,138 @@ const HomePage = (props) => {
     await db.collection("groups").doc(currentGroupId).update({
       user_uids: userDocIds && userDocIds.concat(tagsId)
     })
+    // await initGroup(group)
+    setOpen3(false)
+    setInvalidate7(true)
+  }
+
+  const handleRemoveMember = async (member) => {
+    console.log(member)
+    const idRemoveMember = newCurrentFriendList && newCurrentFriendList.find((friend) => (friend.data.firstName + friend.data.lastName) === member).id
+    await db.collection("groups").doc(currentGroupId).update({
+      conversationMembers: currentConversationUsernames && currentConversationUsernames.filter((groupUser) => groupUser != member)
+    })
+
+    await db.collection("groups").doc(currentGroupId).update({
+      user_uids: userDocIds && userDocIds.filter((userDocId) => userDocId != idRemoveMember)
+    })
+    setOpen4(false)
+  }
+
+  const handleAddGroupImage = (e) => {
+    e.preventDefault()
+    setOpen5(true)
+  }
+
+  const handleImageAsFile = (e) => {
+    const image = e.target.files[0]
+    setImageAsFile(imageAsFile => image)
+  }
+
+  const handleFirebaseUploadGroup = (e) => {
+    e.preventDefault()
+    console.log("Start to upload")
+    if (imageAsFile === '') {
+      console.log(`not an image, the image file is type of ${typeof (imageAsFile)}`)
+    }
+    const uploadTask = storage.ref(`/images/${imageAsFile.name}`).put(imageAsFile)
+    uploadTask.on("state_changed", (snapShot) => {
+    }, (err) => {
+      console.log(err)
+    }, () => {
+      storage.ref('images').child(imageAsFile.name).getDownloadURL()
+        .then(fireBaseUrl => {
+          setImageAsUrl(prevObject => ({ ...prevObject, imgUrl: fireBaseUrl }))
+          db.collection("groups").doc(currentGroupId).update({
+            groupImage: fireBaseUrl
+          })
+        })
+    })
+  }
+
+  const handleShowEmojis = (e, id) => {
+    setOpen6(!open6)
+    setCurrentMessageEmoji(e.currentTarget.id)
+
+    if(chatGroup){
+      db.collection("conversationsGroup").doc(id).onSnapshot((doc) => {
+        if (doc.data().emojiMultiple) {
+          console.log(doc.data().emojiMultiple)
+          setSelectedEmojis(doc.data().emojiMultiple)
+        }
+      })  
+    }
+  }
+
+  const handleReaction = async (e, id) => {
+    e.preventDefault()
+    setSelectedEmoji(e.currentTarget.textContent)
+    const emojiSelected = e.currentTarget.textContent
+    await db.collection("conversations").doc(id).update({
+      emojiSingle: emojiSelected == selectedEmojiOnDatabase ? "" : emojiSelected
+    })
+    await db.collection("conversations").doc(id).onSnapshot((doc) => {
+      if (doc) {
+        setSelectedEmojiOnDatabase(doc.data().emojiSingle)
+      }
+    })
+    setOpen6(false)
+  }
+
+  const handleReactionGroup = async (e, id) => { //id là id conver
+    e.preventDefault()
+    const emojiSelected = e.currentTarget.textContent
+    setCurrentMessageEmojiGroup(id)
+    let check = false
+    db.collection("conversationsGroup").doc(id).onSnapshot((doc) => {
+      if (doc.data().emojiMultiple) {
+        console.log(doc.data().emojiMultiple)
+        setSelectedEmojis(doc.data().emojiMultiple)
+      }
+    })  
+
+    if (!selectedEmojis.hasOwnProperty(emojiSelected)) {
+      // setInvalidate9(!invalidate9)
+      let newEmojiMultiple2 = Object.assign({}, selectedEmojis)
+      Object.keys(newEmojiMultiple2).map(function (key, index) {
+        if (newEmojiMultiple2[key].includes(docId)) {
+          const newCurrentEmoji = newEmojiMultiple2[key].filter((id) => id != docId)
+          newEmojiMultiple2[key] = newCurrentEmoji
+        }
+      })
+
+      let newArray = []
+      newArray.push(docId)
+      newEmojiMultiple2[emojiSelected] = newArray
+      await db.collection("conversationsGroup").doc(id).update({
+        emojiMultiple: newEmojiMultiple2
+      })
+    }
+    else {
+      console.log("contained emoji")
+      let newEmojiMultiple = Object.assign({}, selectedEmojis)
+
+      Object.keys(newEmojiMultiple).map(function (key, index) {
+        if (newEmojiMultiple[key].includes(docId)) {
+          if(key == emojiSelected){
+            check = true
+          }
+          const newCurrentEmoji = newEmojiMultiple[key].filter((id) => id != docId)
+          newEmojiMultiple[key] = newCurrentEmoji
+        }
+      })
+
+      console.log(newEmojiMultiple)
+      if (!newEmojiMultiple[emojiSelected].includes(docId) && !check) {
+        console.log("not have yet")
+        newEmojiMultiple[emojiSelected].push(docId)
+      }
+
+      await db.collection("conversationsGroup").doc(id).update({
+        emojiMultiple: newEmojiMultiple
+      })
+    }
+    setOpen6(false)
   }
 
   return (
@@ -390,53 +630,144 @@ const HomePage = (props) => {
               groups && groups.map((group) => {
                 if (group.data.user_uids.includes(docId)) {
                   return (
-                    <UserGroups group={group} userDocIds={group.data.user_uids} id={group.id} userGroups={group.data} onClick={initGroup} />
+                    <div>
+                      <UserGroups groupImageUrl={group.data.groupImage} group={group} userDocIds={group.data.user_uids} id={group.id} userGroups={group.data} onClick={initGroup} />
+                      <div className={classes.root3}>
+                        <Modal
+                          open={open3}
+                          onClose={() => setOpen3(false)}
+                          className={classes.modal3}
+                        >
+                          <div className={classes.paper3}>
+                            <h3>Add new members</h3>
+                            <div className="input-tag">
+                              <ul className="input-tag__tags">
+                                {tags.map((tag, i) => (
+                                  <li key={tag}>
+                                    {tag}
+                                    <button type="button" onClick={() => removeTagGroup(i)}>x</button>
+                                  </li>
+                                ))}
+                                <li className="input-tag__tags__input">
+                                  <input style={{ width: "100%" }} onKeyDown={(e) => handleSelect(e)} list="friendlist" type="text" placeholder="Enter new member's name" value={tagInput} onChange={(e) => setTagInput(e.target.value)} />
+                                </li>
+                              </ul>
+                            </div>
+
+                            <datalist
+                              id="friendlist"
+                              value={selectedValue}
+                              // onChange={(e) => handleSelectFromDataList(e)}
+                              onChange={(e) => handleSelect(e)}
+                              onSelect={(e) => handleSelect(e)}
+                            >
+                              {friendListName
+                                .filter((friend) => friend.toLowerCase().includes(tagInput.toLowerCase()))
+                                .filter((friend) => !tags.includes(friend))
+                                .map((friend) => {
+                                  if (currentConversationUsernames && !currentConversationUsernames.includes(friend)) {
+                                    return (
+                                      <option onSelect={(e) => setSelectedValue(e.target.value)} value={friend}>{friend}</option>
+                                    )
+                                  }
+                                })
+                              }
+                            </datalist>
+                            <Button styles={{ marginTop: 200 }} onClick={(e) => addMemberToGroups(e, group)}>Add Members to Group</Button>
+                          </div>
+                        </Modal>
+                      </div>
+
+                      <div className={classes.root3}>
+                        <Modal
+                          open={open4}
+                          onClose={() => setOpen4(false)}
+                          className={classes.modal3}
+                        >
+                          <ul className={classes.paper4}>
+                            <h3>Remove members</h3>
+                            {currentConversationUsernames && currentConversationUsernames.map((member) => {
+                              if (member != currentUser.displayName) {
+                                return (
+                                  <li style={{ display: "flex", flexDirection: "row", justifyContent: "space-around", marginBottom: 20 }} >
+                                    <div>{member}</div>
+                                    <Button onClick={() => handleRemoveMember(member)}>Remove</Button>
+                                  </li>
+                                )
+                              }
+                            })}
+                          </ul>
+                        </Modal>
+                      </div>
+
+                      <div className={classes.root3}>
+                        <Modal
+                          open={open5}
+                          onClose={() => setOpen5(false)}
+                          className={classes.modal3}
+                        >
+                          <ul className={classes.paper4}>
+                            <h3>Change Group Image</h3>
+                            <div>
+                              <input type="file" onChange={handleImageAsFile} />
+                              <button onClick={handleFirebaseUploadGroup}>Upload</button>
+                            </div>
+                          </ul>
+                        </Modal>
+                      </div>
+                    </div>
                   )
                 }
               })
             }
           </div>
-          <button onClick={(e) => handleCreateGroupModal(e)} style={{ height: 50 }}>Create a new group</button>
+          <Button onClick={(e) => handleCreateGroupModal(e)} style={{ backgroundColor:"#446fd1", height: 50 }}>Create a new group</Button>
 
-          <Modal
-            open={open2}
-            onClose={() => setOpen2(false)}
-          >
-            <div>
-              <input style={{ width: 500 }} list="friendlist" type="text" placeholder="Enter conversation's name" value={converName} onChange={(e) => setConverName(e.target.value)} />
-              <div className="input-tag">
-                <ul className="input-tag__tags">
-                  {tags.map((tag, i) => (
-                    <li key={tag}>
-                      {tag}
-                      <button type="button" onClick={() => removeTag(i)}>x</button>
+          <div className={classes.root3}>
+            <Modal
+              open={open2}
+              onClose={() => setOpen2(false)}
+              className={classes.modal3}
+            >
+              <div className={classes.paper2}>
+                <h3>Create new conversation group </h3>
+                <div>
+                  <input style={{ width: "100%" }} type="text" placeholder="Enter conversation's name" value={converName} onChange={(e) => setConverName(e.target.value)} />
+                </div>
+                <div className="input-tag">
+                  <ul className="input-tag__tags">
+                    {tags.map((tag, i) => (
+                      <li key={tag}>
+                        {tag}
+                        <button type="button" onClick={() => removeTag(i)}>x</button>
+                      </li>
+                    ))}
+                    <li className="input-tag__tags__input">
+                      <input style={{ width: "100%" }} onKeyDown={(e) => handleSelect(e)} list="friendlist" type="text" placeholder="Enter new member's name" value={tagInput} onChange={(e) => setTagInput(e.target.value)} />
                     </li>
-                  ))}
-                  <li className="input-tag__tags__input">
-                    <input style={{ width: 500 }} onKeyDown={(e) => handleSelect(e)} list="friendlist" type="text" placeholder="Enter new member's name" value={tagInput} onChange={(e) => setTagInput(e.target.value)} />
-                  </li>
-                </ul>
+                  </ul>
+                </div>
+
+                <datalist
+                  id="friendlist"
+                  value={selectedValue}
+                  onChange={(e) => handleSelect(e)}
+                  onSelect={(e) => handleSelect(e)}
+                >
+                  {friendListName
+                    .filter((friend) => friend.toLowerCase().includes(tagInput.toLowerCase()))
+                    .filter((friend) => !tags.includes(friend))
+                    .map((friend) => {
+                      return (
+                        <option value={friend}>{friend}</option>
+                      )
+                    })
+                  }
+                </datalist>
+                <Button onClick={createNewConversationGroup}>Create</Button>
               </div>
-
-              <datalist
-                id="friendlist"
-                value={selectedValue}
-                onChange={(e) => handleSelect(e)}
-                onSelect={(e) => handleSelect(e)}
-              >
-                {friendListName
-                  .filter((friend) => friend.toLowerCase().includes(tagInput.toLowerCase()))
-                  .map((friend) => {
-                    return (
-                      <option value={friend}>{friend}</option>
-                    )
-                  })
-                }
-              </datalist>
-              <Button onClick={createNewConversationGroup}>Create</Button>
-            </div>
-          </Modal>
-
+            </Modal>
+          </div>
         </div>
         <div className="chatArea">
           <div className="chatHeader">
@@ -444,47 +775,12 @@ const HomePage = (props) => {
               chatGroup ?
                 chatStarted ?
                   (<div className="chatHeaderGroup">
-                    <div>{chatUser}</div>
-                    <Button onClick={handleOpenModal}>Add member</Button>
-                    <Modal
-                      open={open3}
-                      onClose={() => setOpen3(false)}
-                    >
-                      <div>
-                        <div className="input-tag">
-                          <ul className="input-tag__tags">
-                            {tags.map((tag, i) => (
-                              <li key={tag}>
-                                {tag}
-                                <button type="button" onClick={() => removeTag(i)}>x</button>
-                              </li>
-                            ))}
-                            <li className="input-tag__tags__input">
-                              <input style={{ width: 500 }} onKeyDown={(e) => handleSelect(e)} list="friendlist" type="text" placeholder="Enter new member's name" value={tagInput} onChange={(e) => setTagInput(e.target.value)} />
-                            </li>
-                          </ul>
-                        </div>
-
-                        <datalist
-                          id="friendlist"
-                          value={selectedValue}
-                          onChange={(e) => handleSelect(e)}
-                          onSelect={(e) => handleSelect(e)}
-                        >
-                          {friendListName
-                            .filter((friend) => friend.toLowerCase().includes(tagInput.toLowerCase()))
-                            .map((friend) => {
-                              if (currentConversationUsernames && !currentConversationUsernames.includes(friend)){
-                                return (
-                                  <option value={friend}>{friend}</option>
-                                )
-                              }
-                            })
-                          }
-                        </datalist>
-                        <Button onClick={addMemberToGroups}>Add</Button>
-                      </div>
-                    </Modal>
+                    <div style={{width: "70%"}}>{chatUser}</div>
+                    <div style={{width: "30%", display:"flex", flexDirection:"row", justifyContent:"space-around"}}>
+                      <Button onClick={handleOpenModalAdd}>Add</Button>
+                      <Button onClick={handleOpenModalRemove}>Remove</Button>
+                      <Button onClick={handleAddGroupImage}>Change Image</Button>
+                    </div>
                   </div>)
                   : ""
                 : chatStarted ? chatUser : ""
@@ -499,31 +795,64 @@ const HomePage = (props) => {
                     <div style={{ textAlign: conver.conver.user_uid_1 == currentUser.uid ? 'right' : "left" }}>
                       {
                         conver.conver.user_uid_1 == currentUser.uid ?
-                          (
-                            <div>
-                              <FontAwesomeIcon onClick={() => handleReplyMess(conver.id)} icon={faReply} />
-                              <div className={conver.conver.user_uid_1 == currentUser.uid ? "messageStyle" : "messageStyleWhite"} >
-                                {conver.conver.haveReply ? (
-                                  <div className="chatReplyMessage">
-                                    {conver.conver.replyMessage}
-                                  </div>
-                                ) : null}
-                                {conver.conver.message}
+                          (<div className="maindiv" style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", zIndex:9999 }}>
+                            {(open6 && (currentMessageEmoji && currentMessageEmoji == conver.id)) ? (
+                              <div className="emojiContainer">
+                                <div onClick={(e) => handleReaction(e, conver.id)} className="emoji-li">{emoji.getUnicode("heart")}</div>
+                                <div onClick={(e) => handleReaction(e, conver.id)} className="emoji-li">{emoji.getUnicode(emoji.names[11])}</div>
+                                <div onClick={(e) => handleReaction(e, conver.id)} className="emoji-li">{emoji.getUnicode(emoji.names[70])}</div>
+                                <div onClick={(e) => handleReaction(e, conver.id)} className="emoji-li">{emoji.getUnicode(emoji.names[73])}</div>
+                                <div onClick={(e) => handleReaction(e, conver.id)} className="emoji-li">{emoji.getUnicode(emoji.names[55])}</div>
+                                <div onClick={(e) => handleReaction(e, conver.id)} className="emoji-li">{emoji.getUnicode(emoji.names[116])}</div>
+                                <div onClick={(e) => handleReaction(e, conver.id)} className="emoji-li">{emoji.getUnicode(emoji.names[117])}</div>
                               </div>
+                            ) : null}
+                            <div>
+                              <div className="maindiv" key={conver.id} className="messageContainerCurrent">
+                                <div className="hide" id={conver.id} onClick={(e) => handleShowEmojis(e, conver.id)}>{emoji.getUnicode("grinning")}</div>
+                                <FontAwesomeIcon className="hide" onClick={() => handleReplyMess(conver.id)} icon={faReply} />
+                                <div className={conver.conver.user_uid_1 == currentUser.uid ? "messageStyle" : "messageStyleWhite"} >
+                                  {conver.conver.haveReply ? (
+                                    <div className="chatReplyMessage">
+                                      {conver.conver.replyMessage}
+                                    </div>
+                                  ) : null}
+                                  {conver.conver.message}
+                                </div>
+                              </div>
+                              <div className="emojiMessage" style={{ position: "absolute", right: "1%", marginTop: -16 }}>{conver.conver.emojiSingle}</div>
                             </div>
+                          </div>
                           )
                           :
                           (
-                            <div>
-                              <div className={conver.conver.user_uid_1 == currentUser.uid ? "messageStyle" : "messageStyleWhite"} >
-                                {conver.conver.haveReply ? (
-                                  <div className="chatReplyMessage">
-                                    {conver.conver.replyMessage}
+                            <div className="maindiv" style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", marginBottom: currentMessageEmoji ? 10 : 0 }}>
+                              {(open6 && (currentMessageEmoji && currentMessageEmoji == conver.id)) ? (
+                                <div className="emojiContainer">
+                                  <div onClick={(e) => handleReaction(e, conver.id)} className="emoji-li">{emoji.getUnicode("heart")}</div>
+                                  <div onClick={(e) => handleReaction(e, conver.id)} className="emoji-li">{emoji.getUnicode(emoji.names[11])}</div>
+                                  <div onClick={(e) => handleReaction(e, conver.id)} className="emoji-li">{emoji.getUnicode(emoji.names[70])}</div>
+                                  <div onClick={(e) => handleReaction(e, conver.id)} className="emoji-li">{emoji.getUnicode(emoji.names[73])}</div>
+                                  <div onClick={(e) => handleReaction(e, conver.id)} className="emoji-li">{emoji.getUnicode(emoji.names[55])}</div>
+                                  <div onClick={(e) => handleReaction(e, conver.id)} className="emoji-li">{emoji.getUnicode(emoji.names[116])}</div>
+                                  <div onClick={(e) => handleReaction(e, conver.id)} className="emoji-li">{emoji.getUnicode(emoji.names[117])}</div>
+                                </div>
+                              ) : null}
+                              <div>
+                                <div className="maindiv" className="messageContainer">
+                                  <div className={conver.conver.user_uid_1 == currentUser.uid ? "messageStyle" : "messageStyleWhite"} >
+                                    {conver.conver.haveReply ? (
+                                      <div className="chatReplyMessage">
+                                        {conver.conver.replyMessage}
+                                      </div>
+                                    ) : null}
+                                    {conver.conver.message}
                                   </div>
-                                ) : null}
-                                {conver.conver.message}
+                                  <FontAwesomeIcon className="hide" onClick={() => handleReplyMess(conver.id)} icon={faReply} />
+                                  <div className="hide" id={conver.id} onClick={(e) => handleShowEmojis(e, conver.id)}>{emoji.getUnicode("grinning")}</div>
+                                </div>
+                                <div className="emojiMessage" style={{ position: "absolute", left: "1%", marginTop: -16 }}>{conver.conver.emojiSingle}</div>
                               </div>
-                              <FontAwesomeIcon onClick={() => handleReplyMess(conver.id)} icon={faReply} />
                             </div>
                           )
                       }
@@ -536,11 +865,23 @@ const HomePage = (props) => {
                       <div style={{ textAlign: conver.conver.sender == docId ? 'right' : "left" }}>
                         {
                           conver.conver.sender == docId ?
-                            (
+                            (<div className="maindiv" style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", zIndex: 9999 }}>
+                              {(open6 && (currentMessageEmoji && currentMessageEmoji == conver.id)) ? (
+                                <div className="emojiContainer">
+                                  <div onClick={(e) => handleReactionGroup(e, conver.id)} className="emoji-li">{emoji.getUnicode("heart")}</div>
+                                  <div onClick={(e) => handleReactionGroup(e, conver.id)} className="emoji-li">{emoji.getUnicode(emoji.names[11])}</div>
+                                  <div onClick={(e) => handleReactionGroup(e, conver.id)} className="emoji-li">{emoji.getUnicode(emoji.names[70])}</div>
+                                  <div onClick={(e) => handleReactionGroup(e, conver.id)} className="emoji-li">{emoji.getUnicode(emoji.names[73])}</div>
+                                  <div onClick={(e) => handleReactionGroup(e, conver.id)} className="emoji-li">{emoji.getUnicode(emoji.names[55])}</div>
+                                  <div onClick={(e) => handleReactionGroup(e, conver.id)} className="emoji-li">{emoji.getUnicode(emoji.names[116])}</div>
+                                  <div onClick={(e) => handleReactionGroup(e, conver.id)} className="emoji-li">{emoji.getUnicode(emoji.names[117])}</div>
+                                </div>
+                              ) : null}
                               <div className="messageWrapper">
                                 <div className="messageSenderRight">{conver.conver.senderName}</div>
                                 <div className="messageContainerCurrent">
-                                  <FontAwesomeIcon onClick={() => handleReplyMessGroup(conver.id)} icon={faReply} />
+                                  <div className="hide" id={conver.id} onClick={(e) => handleShowEmojis(e, conver.id)}>{emoji.getUnicode("grinning")}</div>
+                                  <FontAwesomeIcon className="hide" onClick={() => handleReplyMessGroup(conver.id)} icon={faReply} />
                                   <div className={conver.conver.sender == docId ? "messageStyle" : "messageStyleWhite"} >
                                     {conver.conver.haveReply ? (
                                       <div className="chatReplyMessage">
@@ -553,27 +894,61 @@ const HomePage = (props) => {
                                     <img src={conver.conver.profileImage} alt="" />
                                   </div>
                                 </div>
+                                <div className="emojiWrapper" style={{ display: "flex", flexDirection: "row", position: "absolute", right: "3%", marginTop: 70 }}>
+                                  {conver.conver.emojiMultiple && Object.keys(conver.conver.emojiMultiple).map(function (key, index) {
+                                    return (
+                                      <div style={{ display: "flex", flexDirection: "row" }}>
+                                        <p>{conver.conver.emojiMultiple[key].length > 0 ? key : ""}</p>
+                                        <p>{conver.conver.emojiMultiple[key].length > 0 ? conver.conver.emojiMultiple[key].length : ""}</p>
+                                      </div>
+                                    )
+                                  })}
+                                </div>
                               </div>
+                            </div>
                             )
                             :
                             (
-                              <div className="messageWrapper">
-                                <div className="messageSenderLeft">{conver.conver.senderName}</div>
-                                <div className="messageContainer">
-                                  <div className="displayPicSmall">
-                                    <img src={conver.conver.profileImage} alt="" />
+                              <div className="maindiv" style={{ display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
+                                {(open6 && (currentMessageEmoji && currentMessageEmoji == conver.id)) ? (
+                                  <div className="emojiContainer">
+                                    <div onClick={(e) => handleReactionGroup(e, conver.id)} className="emoji-li">{emoji.getUnicode("heart")}</div>
+                                    <div onClick={(e) => handleReactionGroup(e, conver.id)} className="emoji-li">{emoji.getUnicode(emoji.names[11])}</div>
+                                    <div onClick={(e) => handleReactionGroup(e, conver.id)} className="emoji-li">{emoji.getUnicode(emoji.names[70])}</div>
+                                    <div onClick={(e) => handleReactionGroup(e, conver.id)} className="emoji-li">{emoji.getUnicode(emoji.names[73])}</div>
+                                    <div onClick={(e) => handleReactionGroup(e, conver.id)} className="emoji-li">{emoji.getUnicode(emoji.names[55])}</div>
+                                    <div onClick={(e) => handleReactionGroup(e, conver.id)} className="emoji-li">{emoji.getUnicode(emoji.names[116])}</div>
+                                    <div onClick={(e) => handleReactionGroup(e, conver.id)} className="emoji-li">{emoji.getUnicode(emoji.names[117])}</div>
                                   </div>
+                                ) : null}
+                                <div className="messageWrapper">
+                                  <div className="messageSenderLeft">{conver.conver.senderName}</div>
+                                  <div className="messageContainer">
+                                    <div className="displayPicSmall">
+                                      <img src={conver.conver.profileImage} alt="" />
+                                    </div>
 
-                                  <div className={conver.conver.sender == docId ? "messageStyle" : "messageStyleWhite"} >
-                                    {conver.conver.haveReply ? (
-                                      <div className="chatReplyMessage">
-                                        {conver.conver.replyMessage}
+                                    <div className={conver.conver.sender == docId ? "messageStyle" : "messageStyleWhite"} >
+                                      {conver.conver.haveReply ? (
+                                        <div className="chatReplyMessage">
+                                          {conver.conver.replyMessage}
+                                        </div>
+                                      ) : null}
+                                      {conver.conver.message}
+                                    </div>
+                                    <FontAwesomeIcon className="hide" onClick={() => handleReplyMessGroup(conver.id)} icon={faReply} />
+                                    <div className="hide" id={conver.id} onClick={(e) => handleShowEmojis(e, conver.id)}>{emoji.getUnicode("grinning")}</div>
+                                  </div>
+                                  <div className="emojiWrapper" style={{ display: "flex", flexDirection: "row", position: "absolute", left: "3%", marginTop: 70 }}>
+                                  {conver.conver.emojiMultiple && Object.keys(conver.conver.emojiMultiple).map(function (key, index) {
+                                    return (
+                                      <div style={{ display: "flex", flexDirection: "row" }}>
+                                        <p>{conver.conver.emojiMultiple[key].length > 0 ? key : ""}</p>
+                                        <p style={{color: "#7d7a7a"}}>{conver.conver.emojiMultiple[key].length > 0 ? conver.conver.emojiMultiple[key].length : ""}</p>
                                       </div>
-                                    ) : null}
-                                    {conver.conver.message}
-                                  </div>
-
-                                  <FontAwesomeIcon onClick={() => handleReplyMessGroup(conver.id)} icon={faReply} />
+                                    )
+                                  })}
+                                </div>    
                                 </div>
                               </div>
                             )
@@ -615,8 +990,12 @@ const HomePage = (props) => {
                       <Picker onEmojiClick={onEmojiClick} />
                     </div>
                   </Modal>
-                  <Button className="button" onClick={() => setOpen(true)}>Emo</Button>
-                  <Button className="button" onClick={chatGroup ? sendMessageConversation : sendMessage}>Send</Button>
+                  <div>
+                    <FontAwesomeIcon className="icon" onClick={() => setOpen(true)} icon={faSmile} />
+                    <FontAwesomeIcon className="icon" onClick={chatGroup ? sendMessageConversation : sendMessage} icon={faPaperPlane} />
+                  </div>
+                  {/* <Button className="button" onClick={() => setOpen(true)}>Emo</Button>
+                  <Button className="button" onClick={chatGroup ? sendMessageConversation : sendMessage}>Send</Button> */}
                 </div>
               </div>
               : null
