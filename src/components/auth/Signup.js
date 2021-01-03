@@ -50,14 +50,14 @@ const Signup = () => {
         email: result.user.email
       }
       await localStorage.setItem("user", JSON.stringify(loggedInUser))
-      console.log("log in successfully")
+      // console.log("log in successfully")
       setVerified(true)
       history.push("/")
     }
     catch{
       setError("Failed to create an account")
     }
-    console.log(currentUser)
+    // console.log(currentUser)
     setLoading(false)
   }
   return (

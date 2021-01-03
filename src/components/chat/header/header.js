@@ -60,15 +60,15 @@ const Header = () => {
             }     
         </div>
           <div style={{margin: '20px 0', color: '#fff', fontWeight: 'bold'}}>
-            {currentUser ? `Hi ${currentUser.displayName}` : ''}
+            {currentUser ? `Welcome ${currentUser.displayName}` : ''}
           </div>
         <ul className="menu">
-            {
+            {/* {
               currentUser ?
               <li>
                 <Button style={{backgroundColor: "black"}} onClick={handleLogout}>Logout</Button>
             </li> : null
-            } 
+            }  */}
         </ul>
     </header>
   );

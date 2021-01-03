@@ -61,7 +61,7 @@ const User = (props) => {
   const [pending, setPending] = useState()
 
   useEffect(() => {
-    db.collection("users").doc(docId).get().then((doc) => {
+    db.collection("users").doc(docId).onSnapshot((doc) => {
       if (doc) {
         setPendingFriends(doc.data().pendingFriends)
       }
@@ -69,7 +69,7 @@ const User = (props) => {
   }, []);
 
   useEffect(() => {
-    db.collection("users").doc(docId).get().then((doc) => {
+    db.collection("users").doc(docId).onSnapshot((doc) => {
       if (doc) {
         setSentFriendRequests(doc.data().sentFriendRequests)
       }
@@ -112,7 +112,7 @@ const User = (props) => {
     })
     setPendingFriends([])
     setSentFriendRequests([])
-    console.log("Accepted", id)
+    // console.log("Accepted", id)
   }
 
   const handleDeclineFriend = async (id) => {
@@ -197,7 +197,7 @@ const Friend = (props) => {
   useEffect(() => {
     db.collection("users").doc(friendId).get().then((doc) => {
       if (doc) {
-        console.log(doc.data())
+        // console.log(doc.data())
         setFriendProfile(doc.data())
       }
     })
@@ -206,7 +206,7 @@ const Friend = (props) => {
 
   const handleRemoveFriend = (e) => {
     e.preventDefault()
-    console.log(friendList)
+    // console.log(friendList)
     db.collection("users").doc(docId).update({
       friendList: friendList.filter((friend) => friend != friendId)
     })
@@ -248,7 +248,7 @@ const Dashboard = () => {
   const [listPendingFriends, setListPendingFriends] = useState([])
   const [friendList, setFriendList] = useState([])
   const [selectedFile, setSelectedFile] = useState(null)
-
+  const [currentUserInfo, setCurrentUserInfo] = useState({})
   const allInputs = { imgUrl: '' }
   const [imageAsFile, setImageAsFile] = useState('')
   const [imageAsUrl, setImageAsUrl] = useState(allInputs)
@@ -261,7 +261,7 @@ const Dashboard = () => {
     if (docId) {
       db.collection("users").doc(docId).get().then((doc) => {
         if (doc.data().profileImage) {
-          console.log(doc.data().profileImage)
+          // console.log(doc.data().profileImage)
           setProfileImageUrl(doc.data().profileImage)
         }
       })
@@ -271,7 +271,7 @@ const Dashboard = () => {
 
   useEffect(() => {
     if (docId) {
-      db.collection("users").doc(docId).get().then((doc) => {
+      db.collection("users").doc(docId).onSnapshot((doc) => {
         if (doc.data().pendingFriends) {
           setListPendingFriends(doc.data().pendingFriends)
         }
@@ -296,6 +296,15 @@ const Dashboard = () => {
   }, [docId]);
 
   useEffect(() => {
+    db.collection("users").doc(docId).onSnapshot((doc)=>{
+      if(doc.data()){
+        setCurrentUserInfo(doc.data())
+      }
+    })
+  }, [docId]);
+  
+
+  useEffect(() => {
     if (listPendingFriends) {
       let newUserList = []
       db.collection("users").get().then((data) => {
@@ -307,7 +316,7 @@ const Dashboard = () => {
             newUserList.push({ id: doc.id, user: doc.data(), pending: false })
           }
         })
-        console.log(newUserList)
+        // console.log(newUserList)
         setUserList(newUserList)
       })
       setInvalidate2(false)
@@ -333,13 +342,13 @@ const Dashboard = () => {
 
   const handleFirebaseUpload = (e) => {
     e.preventDefault()
-    console.log("Start to upload")
+    // console.log("Start to upload")
     if (imageAsFile === '') {
-      console.log(`not an image, the image file is type of ${typeof (imageAsFile)}`)
+      // console.log(`not an image, the image file is type of ${typeof (imageAsFile)}`)
     }
     const uploadTask = storage.ref(`/images/${imageAsFile.name}`).put(imageAsFile)
     uploadTask.on("state_changed", (snapShot) => {
-      console.log(snapShot)
+      // console.log(snapShot)
     }, (err) => {
       console.log(err)
     }, () => {
@@ -383,7 +392,7 @@ const Dashboard = () => {
         <div className="side-dashboard">
           <div className="upper">
             <div style={{ position: "relative", top: "10%" }}>
-              <div style={{ color: "white", fontSize: 25 }}><strong>{currentUser.displayName}</strong></div>
+              <div style={{ color: "white", fontSize: 25 }}><strong>{currentUserInfo && (`${currentUserInfo.firstName} ${currentUserInfo.lastName}`)}</strong></div>
               <div style={{ color: "grey", fontSize: 15 }}><strong>{currentUser.email}</strong></div>
             </div>
             <img

@@ -9,10 +9,11 @@ import { makeStyles } from '@material-ui/core';
 import Modal from '@material-ui/core/Modal';
 import { db, storage } from '../../services/firebase';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faCoffee, faReply, faSmile, faPaperPlane } from '@fortawesome/free-solid-svg-icons'
+import { faCoffee, faReply, faSmile, faPaperPlane, faTimesCircle, faPlus, faInfoCircle } from '@fortawesome/free-solid-svg-icons'
 import './HomePage.css';
 import firebase from "firebase";
 import emoji from "emoji-dictionary";
+import { Link, useHistory } from 'react-router-dom';
 
 const useStyles = makeStyles((theme) => ({
   paper: {
@@ -62,7 +63,7 @@ const useStyles = makeStyles((theme) => ({
   paper4: {
     width: 500,
     height: 500,
-    alignItems: "center",
+    // alignItems: "center",
     backgroundColor: theme.palette.background.paper,
     border: '2px solid #000',
     boxShadow: theme.shadows[5],
@@ -139,7 +140,7 @@ const UserGroups = (props) => {
 
 const HomePage = (props) => {
   const dispatch = useDispatch()
-  const { currentUser } = useAuth()
+  const { currentUser, logout } = useAuth()
   const [invalidate, setInvalidate] = useState(true)
   const [invalidate2, setInvalidate2] = useState(true)
   const [invalidate4, setInvalidate4] = useState(true)
@@ -188,7 +189,11 @@ const HomePage = (props) => {
   const [currentKey, setCurrentKey] = useState("")
   const [invalidate9, setInvalidate9] = useState(false)
   const [selectedMember, setSelectedMember] = useState(false)
+  const [error, setError] = useState("")
+  const [open9, setOpen9] = useState(false) //function modal
+  const [open10, setOpen10] = useState(false) //info modal
 
+  const history = useHistory()
   const classes = useStyles()
   const classesModal = useStyles()
 
@@ -297,14 +302,14 @@ const HomePage = (props) => {
     setChatUser(`${user.firstName} ${user.lastName}`)
     setUserUid(user.uid)
     dispatch(getRealTimeConversations({ uid_1: currentUser.uid, uid_2: user.uid }))
-    console.log(user)
+    // console.log(user)
   }
 
   const initGroup = (group) => {
     dispatch(getRealTimeConversationsGroups(group.data))
     setCurrentConversationName(group.data.conversationName)
     setCurrentConversationUsernames(group.data.conversationMembers)
-    setChatUser(`${group.data.conversationName}: ${group.data.conversationMembers.map((name) => { return name })}`)
+    setChatUser(`${group.data.conversationName}`)
     setUserDocIds(group.data.user_uids)
     setCurrentGroupId(group.id)
     setChatStarted(true)
@@ -342,7 +347,7 @@ const HomePage = (props) => {
       profileImage: profileImageUrl,
       senderName: currentUser.displayName
     }
-    console.log(messageObject)
+    // console.log(messageObject)
     if (message) {
       dispatch(createMessageGroup(messageObject))
         .then(() => {
@@ -367,7 +372,7 @@ const HomePage = (props) => {
   };
 
   const handleReplyMess = (id) => {
-    console.log("reply")
+    // console.log("reply")
     db.collection("conversations").doc(id).get().then((doc) => {
       setReplyMessage(doc.data().message)
     })
@@ -437,7 +442,7 @@ const HomePage = (props) => {
   }
 
   const handleSelectFromDataList = (e) => {
-    console.log("selected")
+    // console.log("selected")
     setSelectedMember(true)
   }
 
@@ -481,7 +486,6 @@ const HomePage = (props) => {
   }
 
   const handleRemoveMember = async (member) => {
-    console.log(member)
     const idRemoveMember = newCurrentFriendList && newCurrentFriendList.find((friend) => (friend.data.firstName + friend.data.lastName) === member).id
     await db.collection("groups").doc(currentGroupId).update({
       conversationMembers: currentConversationUsernames && currentConversationUsernames.filter((groupUser) => groupUser != member)
@@ -505,9 +509,9 @@ const HomePage = (props) => {
 
   const handleFirebaseUploadGroup = (e) => {
     e.preventDefault()
-    console.log("Start to upload")
+    // console.log("Start to upload")
     if (imageAsFile === '') {
-      console.log(`not an image, the image file is type of ${typeof (imageAsFile)}`)
+      // console.log(`not an image, the image file is type of ${typeof (imageAsFile)}`)
     }
     const uploadTask = storage.ref(`/images/${imageAsFile.name}`).put(imageAsFile)
     uploadTask.on("state_changed", (snapShot) => {
@@ -528,13 +532,13 @@ const HomePage = (props) => {
     setOpen6(!open6)
     setCurrentMessageEmoji(e.currentTarget.id)
 
-    if(chatGroup){
+    if (chatGroup) {
       db.collection("conversationsGroup").doc(id).onSnapshot((doc) => {
         if (doc.data().emojiMultiple) {
-          console.log(doc.data().emojiMultiple)
+          // console.log(doc.data().emojiMultiple)
           setSelectedEmojis(doc.data().emojiMultiple)
         }
-      })  
+      })
     }
   }
 
@@ -560,10 +564,10 @@ const HomePage = (props) => {
     let check = false
     db.collection("conversationsGroup").doc(id).onSnapshot((doc) => {
       if (doc.data().emojiMultiple) {
-        console.log(doc.data().emojiMultiple)
+        // console.log(doc.data().emojiMultiple)
         setSelectedEmojis(doc.data().emojiMultiple)
       }
-    })  
+    })
 
     if (!selectedEmojis.hasOwnProperty(emojiSelected)) {
       // setInvalidate9(!invalidate9)
@@ -583,12 +587,12 @@ const HomePage = (props) => {
       })
     }
     else {
-      console.log("contained emoji")
+      // console.log("contained emoji")
       let newEmojiMultiple = Object.assign({}, selectedEmojis)
 
       Object.keys(newEmojiMultiple).map(function (key, index) {
         if (newEmojiMultiple[key].includes(docId)) {
-          if(key == emojiSelected){
+          if (key == emojiSelected) {
             check = true
           }
           const newCurrentEmoji = newEmojiMultiple[key].filter((id) => id != docId)
@@ -596,9 +600,9 @@ const HomePage = (props) => {
         }
       })
 
-      console.log(newEmojiMultiple)
+      // console.log(newEmojiMultiple)
       if (!newEmojiMultiple[emojiSelected].includes(docId) && !check) {
-        console.log("not have yet")
+        // console.log("not have yet")
         newEmojiMultiple[emojiSelected].push(docId)
       }
 
@@ -607,6 +611,32 @@ const HomePage = (props) => {
       })
     }
     setOpen6(false)
+  }
+
+  async function handleLogout(e) {
+    setError('')
+
+    try {
+      await logout()
+        .then(() => {
+          db.collection("users").doc(docId).update({
+            isOnline: false
+          })
+        })
+      await localStorage.clear()
+      history.push('/login')
+    }
+    catch {
+      setError("Failed to log out")
+    }
+  }
+
+  const openFunctionModal = (e) => {
+    setOpen9(true)
+  }
+
+  const openInfoModal = (e) => {
+    setOpen10(true)
   }
 
   return (
@@ -640,6 +670,7 @@ const HomePage = (props) => {
                         >
                           <div className={classes.paper3}>
                             <h3>Add new members</h3>
+                            (Enter to choose)
                             <div className="input-tag">
                               <ul className="input-tag__tags">
                                 {tags.map((tag, i) => (
@@ -721,7 +752,7 @@ const HomePage = (props) => {
               })
             }
           </div>
-          <Button onClick={(e) => handleCreateGroupModal(e)} style={{ backgroundColor:"#446fd1", height: 50 }}>Create a new group</Button>
+          <Button onClick={(e) => handleCreateGroupModal(e)} style={{ backgroundColor: "#446fd1", height: 50 }}>Create a new group</Button>
 
           <div className={classes.root3}>
             <Modal
@@ -775,11 +806,43 @@ const HomePage = (props) => {
               chatGroup ?
                 chatStarted ?
                   (<div className="chatHeaderGroup">
-                    <div style={{width: "70%"}}>{chatUser}</div>
-                    <div style={{width: "30%", display:"flex", flexDirection:"row", justifyContent:"space-around"}}>
-                      <Button onClick={handleOpenModalAdd}>Add</Button>
-                      <Button onClick={handleOpenModalRemove}>Remove</Button>
-                      <Button onClick={handleAddGroupImage}>Change Image</Button>
+                    <div style={{ width: "90%" }}>{chatUser}</div>
+                    <div style={{ width: "10%", display: "flex", flexDirection: "row", justifyContent: "space-around", alignItems:"center" }}>
+                      <FontAwesomeIcon style={{fontSize: 35}} onClick={openFunctionModal} icon={faPlus} />
+                      <FontAwesomeIcon style={{fontSize: 35}} onClick={openInfoModal} icon={faInfoCircle} />
+
+                      <Modal
+                        open={open9}
+                        onClose={() => setOpen9(false)}
+                        className={classes.modal3}
+                      >
+                        <div className={classes.paper4}>
+                          <h3>Group Functions</h3>
+                          <div style={{display: "flex", justifyContent: 'space-around',}}>
+                            <Button style={{marginBot: 20}} onClick={handleOpenModalAdd}>Add</Button>
+                            <Button style={{marginBot: 20}} onClick={handleOpenModalRemove}>Remove</Button>
+                            <Button style={{marginBot: 20}} onClick={handleAddGroupImage}>Change Group Image</Button>
+                          </div>
+                        </div>
+                      </Modal>
+
+                      <Modal
+                        open={open10}
+                        onClose={() => setOpen10(false)}
+                        className={classes.modal3}
+                      >
+                        <ul className={classes.paper4}>
+                          <h3>Group members</h3>
+                          {currentConversationUsernames && currentConversationUsernames.map((member) => {
+                            return (
+                              <li style={{ display: "flex", flexDirection: "row", justifyContent: "space-around", marginBottom: 20 }} >
+                                <div>{member}</div>
+                              </li>
+                            )
+                          })}
+                        </ul>
+                      </Modal>
+
                     </div>
                   </div>)
                   : ""
@@ -795,7 +858,7 @@ const HomePage = (props) => {
                     <div style={{ textAlign: conver.conver.user_uid_1 == currentUser.uid ? 'right' : "left" }}>
                       {
                         conver.conver.user_uid_1 == currentUser.uid ?
-                          (<div className="maindiv" style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", zIndex:9999 }}>
+                          (<div className="maindiv" style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", zIndex: 9999 }}>
                             {(open6 && (currentMessageEmoji && currentMessageEmoji == conver.id)) ? (
                               <div className="emojiContainer">
                                 <div onClick={(e) => handleReaction(e, conver.id)} className="emoji-li">{emoji.getUnicode("heart")}</div>
@@ -940,15 +1003,15 @@ const HomePage = (props) => {
                                     <div className="hide" id={conver.id} onClick={(e) => handleShowEmojis(e, conver.id)}>{emoji.getUnicode("grinning")}</div>
                                   </div>
                                   <div className="emojiWrapper" style={{ display: "flex", flexDirection: "row", position: "absolute", left: "3%", marginTop: 70 }}>
-                                  {conver.conver.emojiMultiple && Object.keys(conver.conver.emojiMultiple).map(function (key, index) {
-                                    return (
-                                      <div style={{ display: "flex", flexDirection: "row" }}>
-                                        <p>{conver.conver.emojiMultiple[key].length > 0 ? key : ""}</p>
-                                        <p style={{color: "#7d7a7a"}}>{conver.conver.emojiMultiple[key].length > 0 ? conver.conver.emojiMultiple[key].length : ""}</p>
-                                      </div>
-                                    )
-                                  })}
-                                </div>    
+                                    {conver.conver.emojiMultiple && Object.keys(conver.conver.emojiMultiple).map(function (key, index) {
+                                      return (
+                                        <div style={{ display: "flex", flexDirection: "row" }}>
+                                          <p>{conver.conver.emojiMultiple[key].length > 0 ? key : ""}</p>
+                                          <p style={{ color: "#7d7a7a" }}>{conver.conver.emojiMultiple[key].length > 0 ? conver.conver.emojiMultiple[key].length : ""}</p>
+                                        </div>
+                                      )
+                                    })}
+                                  </div>
                                 </div>
                               </div>
                             )
@@ -969,11 +1032,13 @@ const HomePage = (props) => {
                       <div>
                         <div>
                           <FontAwesomeIcon icon={faReply} />
-                      Replying to {chatUser}
+                        Replying to {chatUser}
                         </div>
                         <span className="replyMessage">{replyMessage}</span>
                       </div>
-                      <div onClick={handleExitReply} className="exit">X</div>
+                      <div onClick={handleExitReply} className="exit">
+                        <FontAwesomeIcon icon={faTimesCircle} />
+                      </div>
                     </div>
                   ) : null
                 }
@@ -1000,6 +1065,72 @@ const HomePage = (props) => {
               </div>
               : null
           }
+        </div>
+        <div className="side-dashboard">
+          <div className="upper">
+            <div style={{ position: "relative", top: "10%" }}>
+              <div style={{ color: "white", fontSize: 25 }}><strong>{currentUser.displayName}</strong></div>
+              <div style={{ color: "grey", fontSize: 15 }}><strong>{currentUser.email}</strong></div>
+            </div>
+            <img
+              src={profileImageUrl}
+              style={{
+                width: 100,
+                height: 100,
+                borderRadius: 50,
+                position: "relative",
+                top: "20%"
+              }}
+            />
+          </div>
+          <div className="lower">
+            {/* <div onClick={changeProfilePic} className="profile-pic hover">
+              <strong style={{ marginLeft: 20 }}>Change Profile Picture</strong>
+            </div> */}
+            <div className="chat2 hover">
+              <strong style={{ marginLeft: 20 }}>
+                <Link to="/" style={{ color: 'inherit', textDecoration: 'inherit' }}>Go to Dash Board</Link>
+              </strong>
+            </div>
+            <div className="friend-list">
+              <div style={{ display: "flex", alignItems: "center" }}>
+                <strong style={{ marginLeft: 20, marginTop: 10, marginBottom: 10 }}>Friend List</strong>
+              </div>
+              <div>
+                {newCurrentFriendList && newCurrentFriendList.map((friend) => {
+                  return (
+                    <div>
+                      <div className="friend-info">
+                        <img
+                          src={friend.data.profileImage}
+                          style={{
+                            width: 40,
+                            height: 40,
+                            borderRadius: 20,
+                          }}
+                        />
+                        <div style={{ marginLeft: 15 }} className="name">
+                          {friend.data.firstName} {friend.data.lastName}
+                        </div>
+                        {/* <div onClick={(e) => handleRemoveFriend(e)}>
+                          <FontAwesomeIcon icon={faTimesCircle} />
+                        </div> */}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+            {/* <div className="update-profile hover">
+              <span style={{ marginLeft: 20 }}>
+                <Link to="/update-profile" style={{ color: 'inherit', textDecoration: 'inherit' }}>Update Profile</Link>
+              </span>
+            </div> */}
+
+            <div onClick={(e) => handleLogout(e)} className="logout hover">
+              <strong style={{ marginLeft: 20 }}>Logout</strong>
+            </div>
+          </div>
         </div>
       </div>
     </>
