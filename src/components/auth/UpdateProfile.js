@@ -16,6 +16,7 @@ const UpdateProfile = () => {
   const [verified, setVerified] = useState(false)
   const [invalidate, setInvalidate] = useState(true)
   const [docId, setDocId] = useState("")
+  const [currentUserInfo, setCurrentUserInfo] = useState({})
   const history = useHistory()
 
   useEffect(() => {
@@ -23,21 +24,33 @@ const UpdateProfile = () => {
       db.collection("users").where("uid", "==", currentUser.uid)
         .onSnapshot((snapShot) => {
           snapShot.docs.map((doc) => setDocId(doc.id))
-          setInvalidate(false)
         })
+      setInvalidate(false)
     }
   }, [invalidate]);
 
+
+  useEffect(() => {
+    if(docId){
+      db.collection("users").doc(docId).onSnapshot((doc)=>{
+        setCurrentUserInfo(doc.data())
+      })
+    }
+  },[docId])
+  console.log(docId)
+  console.log(currentUserInfo)
   //luôn set loading trước async function 
   function handleSubmit(e){
     e.preventDefault()
-    setError("")
+    // setError("")
     if(passwordRef.current.value !== passwordConfirmRef.current.value){
       return setError("Passwords do not match")
       //set the error only 1 time
     }
 
     const promises = [] //async
+    // e.preventDefault()
+    setError("")
     setLoading(true)
     if(emailRef.current.value !== currentUser.email){
       promises.push(updateEmail(emailRef.current.value))
@@ -65,15 +78,16 @@ const UpdateProfile = () => {
     //promise all chỉ run .then() nếu all promises đã run xong và success
     Promise.all(promises).then(()=>{
       history.push('/')
-    }).catch(() => {
-      setError("Failed to update account")
+    }).catch((err) => {
+      console.log(err)
+      setError("Failed to update account. Please relogin to update again")
     }).finally(() => { //run khi success or fail
       setLoading(false)
     })
   }
   return (
     <div className="loginWrap">
-      <Card style={{width: 400, height: 600}}>
+      <Card style={{width: 400, height: 700}}>
         <Card.Body>
         <h2 className="text-center mb-4">Update Profile</h2>
         {/* {currentUser && currentUser.email} */}
@@ -98,12 +112,12 @@ const UpdateProfile = () => {
 
           <Form.Group id="firstname">
             <Form.Label>First Name</Form.Label>
-            <Form.Control type="text" ref={firstNameRef} placeholder="leave blank to keep the same"></Form.Control>
+            <Form.Control type="text" ref={firstNameRef} defaultValue={currentUserInfo.firstName} placeholder="leave blank to keep the same"></Form.Control>
           </Form.Group>
 
           <Form.Group id="lastname">
             <Form.Label>Last Name</Form.Label>
-            <Form.Control type="text" ref={lastNameRef} placeholder="leave blank to keep the same"></Form.Control>
+            <Form.Control type="text" ref={lastNameRef} defaultValue={currentUserInfo.lastName} placeholder="leave blank to keep the same"></Form.Control>
           </Form.Group>
           <Button disabled={loading} className="w-100" type="submit">
             Update Profile

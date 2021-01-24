@@ -31,7 +31,7 @@ const Signup = () => {
       await result.user.updateProfile({
         displayName: firstNameRef.current.value + " " + lastNameRef.current.value
       })
-      await result.user.sendEmailVerification()
+      // await result.user.sendEmailVerification()
       await db.collection("users").add({
         email: emailRef.current.value,
         firstName: firstNameRef.current.value,
@@ -39,7 +39,7 @@ const Signup = () => {
         uid: result.user.uid,
         createdAt: new Date(),
         isOnline: true,
-        profileImage: "",
+        profileImage: "https://i.pinimg.com/originals/e0/7a/22/e07a22eafdb803f1f26bf60de2143f7b.png",
         friendList: [],
         pendingFriends: [],
       })
@@ -55,7 +55,7 @@ const Signup = () => {
       history.push("/")
     }
     catch{
-      setError("Failed to create an account")
+      setError("Failed to create an account. Password must be at least 6 characters or username already existed")
     }
     // console.log(currentUser)
     setLoading(false)

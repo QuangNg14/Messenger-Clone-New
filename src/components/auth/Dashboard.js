@@ -62,7 +62,7 @@ const User = (props) => {
 
   useEffect(() => {
     db.collection("users").doc(docId).onSnapshot((doc) => {
-      if (doc) {
+      if (doc.data().pendingFriends) {
         setPendingFriends(doc.data().pendingFriends)
       }
     })
@@ -70,7 +70,7 @@ const User = (props) => {
 
   useEffect(() => {
     db.collection("users").doc(docId).onSnapshot((doc) => {
-      if (doc) {
+      if (doc.data().sentFriendRequests) {
         setSentFriendRequests(doc.data().sentFriendRequests)
       }
     })
@@ -96,11 +96,11 @@ const User = (props) => {
     })
 
     await db.collection("users").doc(id).update({
-      pendingFriends: pendingFriends.filter((friendId) => friendId != docId)
+      pendingFriends: pendingFriends.filter((friendId) => friendId != id && friendId != docId)
     })
 
     await db.collection("users").doc(docId).update({
-      pendingFriends: pendingFriends.filter((friendId) => friendId != id)
+      pendingFriends: pendingFriends.filter((friendId) => friendId != id && friendId != docId)
     })
 
     await db.collection("users").doc(id).update({
@@ -117,11 +117,11 @@ const User = (props) => {
 
   const handleDeclineFriend = async (id) => {
     await db.collection("users").doc(id).update({
-      pendingFriends: pendingFriends.filter((friendId) => friendId != docId)
+      pendingFriends: pendingFriends.filter((friendId) => friendId != id && friendId != docId)
     })
 
     await db.collection("users").doc(docId).update({
-      pendingFriends: pendingFriends.filter((friendId) => friendId != id)
+      pendingFriends: pendingFriends.filter((friendId) => friendId != id && friendId != docId)
     })
   }
 
@@ -163,14 +163,14 @@ const User = (props) => {
                 <div>
                   {pendingFriends && pendingFriends.includes(id) ?
                     (
-                      <>
-                        <Button onClick={() => handleAcceptFriend(id)}>
-                          <FontAwesomeIcon icon={faCheck}/>
+                      <div style={{display: "flex", flexDirection:"row"}}>
+                        <Button style={{marginRight: 20}} onClick={() => handleAcceptFriend(id)}>
+                          <FontAwesomeIcon style={{fontSize: 16}} icon={faCheck}/>
                         </Button>
                         <Button onClick={() => handleDeclineFriend(id)}>
-                          <FontAwesomeIcon icon={faTimes}/>
+                          <FontAwesomeIcon style={{fontSize: 20}} icon={faTimes}/>
                         </Button>
-                      </>
+                      </div>
                     )
                     :
                     (
@@ -191,7 +191,7 @@ const User = (props) => {
 }
 
 const Friend = (props) => {
-  const { friendId, docId, friendList } = props
+  const { friendId, docId, friendList, sentFriendRequests } = props
   const [friendProfile, setFriendProfile] = useState({})
 
   useEffect(() => {
@@ -208,12 +208,17 @@ const Friend = (props) => {
     e.preventDefault()
     // console.log(friendList)
     db.collection("users").doc(docId).update({
-      friendList: friendList.filter((friend) => friend != friendId)
+      friendList: friendList.filter((friend) => friend != friendId && friend != docId)
     })
 
     db.collection("users").doc(friendId).update({
-      friendList: friendList.filter((friend) => friend != docId)
+      friendList: friendList.filter((friend) => friend != docId && friend != friendId)
     })
+
+    // db.collection("users").doc(docId).update({
+    //   sentFriendRequests: sentFriendRequests.filter((friend) => friend != friendId)
+    // })
+    
   }
 
   return (
@@ -255,8 +260,21 @@ const Dashboard = () => {
   const [profileImageUrl, setProfileImageUrl] = useState("")
   const [invalidate5, setInvalidate5] = useState(true)
   const [open, setOpen] = useState(false)
+  const [sentFriendRequests, setSentFriendRequests] = useState([])
+
   const classes = useStyles()
   const history = useHistory()
+
+  useEffect(() => {
+  if(docId){
+    db.collection("users").doc(docId).onSnapshot((doc) => {
+      if (doc.data().sentFriendRequests) {
+        setSentFriendRequests(doc.data().sentFriendRequests)
+      }
+    })
+  }
+  }, [docId]);
+
   useEffect(() => {
     if (docId) {
       db.collection("users").doc(docId).get().then((doc) => {
@@ -284,8 +302,8 @@ const Dashboard = () => {
       db.collection("users").where("uid", "==", currentUser.uid)
         .onSnapshot((snapShot) => {
           snapShot.docs.map((doc) => setDocId(doc.id))
-          setInvalidate(false)
         })
+      setInvalidate(false)
     }
   }, [invalidate]);
 
@@ -393,7 +411,7 @@ const Dashboard = () => {
           <div className="upper">
             <div style={{ position: "relative", top: "10%" }}>
               <div style={{ color: "white", fontSize: 25 }}><strong>{currentUserInfo && (`${currentUserInfo.firstName} ${currentUserInfo.lastName}`)}</strong></div>
-              <div style={{ color: "grey", fontSize: 15 }}><strong>{currentUser.email}</strong></div>
+              <div style={{ color: "grey", fontSize: 15 }}><strong>{currentUserInfo.email}</strong></div>
             </div>
             <img
               src={profileImageUrl}
@@ -430,7 +448,7 @@ const Dashboard = () => {
               <div>
                 {friendList && friendList.map((friendId) => {
                   return (
-                    <Friend friendList={friendList} docId={docId} friendId={friendId} />
+                    <Friend sentFriendRequests={sentFriendRequests} friendList={friendList} docId={docId} friendId={friendId} />
                   )
                 })}
               </div>
@@ -442,7 +460,7 @@ const Dashboard = () => {
             </div>
             
             <div onClick={(e) => handleLogout(e)} className="logout hover">
-              <span style={{ marginLeft: 20 }}>Logout</span>
+              <span onClick={(e) => handleLogout(e)} style={{ marginLeft: 20 }}>Logout</span>
             </div>
           </div>
         </div>

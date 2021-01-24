@@ -14,6 +14,7 @@ import './HomePage.css';
 import firebase from "firebase";
 import emoji from "emoji-dictionary";
 import { Link, useHistory } from 'react-router-dom';
+import  { encrypt , decrypt } from 'react-crypt-gsm';
 
 const useStyles = makeStyles((theme) => ({
   paper: {
@@ -93,7 +94,7 @@ const useStyles = makeStyles((theme) => ({
 const User = (props) => {
   const [profileImageUrl, setProfileImageUrl] = useState("")
   const [invalidate5, setInvalidate5] = useState(true)
-  const { user, onClick, id } = props
+  const { user, onClick, id, currentChatId, chatGroup } = props
 
   useEffect(() => {
     if (id) {
@@ -107,31 +108,32 @@ const User = (props) => {
     }
   }, [id, invalidate5]);
   return (
-    <div onClick={() => onClick(user)} className="displayName">
+    <div style={{backgroundColor: (currentChatId == id && !chatGroup) ? "rgb(49, 63, 160)": ""}} onClick={() => onClick(user)} className="displayName">
       <div className="displayPic">
         <img src={profileImageUrl} alt="" />
       </div>
       <div style={{ display: "flex", flex: 1, justifyContent: 'space-between', margin: '0 10px' }}>
-        <span style={{ fontWeight: 500 }}>{user.firstName} {user.lastName}</span>
-        <span className={user.isOnline ? "onlineStatus" : "onlineStatus off"}>
+        <span style={{color: (currentChatId == id && !chatGroup) ? "white" : "",fontWeight: 500 }}>{user.data.firstName} {user.data.lastName}</span>
+        <span className={user.data.isOnline ? "onlineStatus" : "onlineStatus off"}>
         </span>
       </div>
     </div>
   )
 }
 
+
 const UserGroups = (props) => {
-  const { groupImageUrl, group, userGroups, onClick, userDocIds, id } = props
+  const { groupImageUrl, group, userGroups, onClick, userDocIds, id, chatGroup, currentGroupId } = props
   const [profileImageUrl, setProfileImageUrl] = useState("")
   const [invalidate5, setInvalidate5] = useState(true)
 
   return (
-    <div onClick={() => onClick(group)} className="displayName">
+    <div style={{backgroundColor: (currentGroupId == id && chatGroup) ? "rgb(49, 63, 160)": ""}} onClick={() => onClick(group)} className="displayName">
       <div className="displayPic">
         <img src={groupImageUrl} alt="" />
       </div>
       <div style={{ display: "flex", flex: 1, justifyContent: 'space-between', margin: '0 10px' }}>
-        <span style={{ fontWeight: 500 }}>{userGroups.conversationName}</span>
+        <span style={{color: (currentGroupId == id && chatGroup) ? "white" : "", fontWeight: 500 }}>{userGroups.conversationName}</span>
       </div>
     </div>
   )
@@ -192,7 +194,11 @@ const HomePage = (props) => {
   const [error, setError] = useState("")
   const [open9, setOpen9] = useState(false) //function modal
   const [open10, setOpen10] = useState(false) //info modal
+  const [currentChatId, setCurrentChatId] = useState("")
+  const [currentUserInfo, setCurrentUserInfo] = useState({})
+  const [groupFromTagsId, setGroupFromTagsId] = useState("")
 
+  let unsubscribe;
   const history = useHistory()
   const classes = useStyles()
   const classesModal = useStyles()
@@ -204,6 +210,21 @@ const HomePage = (props) => {
     array.splice(0, array.length, ...(new Set(array)))
   };
 
+  useEffect(() => {
+    db.collection("users").doc(docId).onSnapshot((doc)=>{
+      if(doc.data()){
+        setCurrentUserInfo(doc.data())
+      }
+    })
+  }, [docId]);
+
+  useEffect(() => {
+    return () => {
+      //cleanup
+      unsubscribe.then(f => f()).catch(error => console.log(error));
+    }
+  }, []);
+  // console.log(user.conversations)
   useEffect(() => {
     if (invalidate2) {
       db.collection("users").where("uid", "==", currentUser.uid)
@@ -250,8 +271,7 @@ const HomePage = (props) => {
   }, [])
 
   useEffect(() => {
-    if (invalidate) {
-      dispatch(getRealTimeUsers(currentUser.uid))
+    unsubscribe = dispatch(getRealTimeUsers(currentUser.uid))
         .then((unsubscribe) => {
           setInvalidate(false)
           return unsubscribe
@@ -259,8 +279,7 @@ const HomePage = (props) => {
         .catch((err) => {
           console.log(err)
         })
-    }
-  }, [invalidate]);
+  }, []);
 
   useEffect(() => {
     db.collection("groups").onSnapshot((data) => {
@@ -297,15 +316,17 @@ const HomePage = (props) => {
   }, [currentGroupId, invalidate8, imageAsUrl]);
 
   const initChat = (user) => {
+    setCurrentChatId(user.id)
     setChatStarted(true)
     setChatGroup(false)
-    setChatUser(`${user.firstName} ${user.lastName}`)
-    setUserUid(user.uid)
-    dispatch(getRealTimeConversations({ uid_1: currentUser.uid, uid_2: user.uid }))
+    setChatUser(`${user.data.firstName} ${user.data.lastName}`)
+    dispatch(getRealTimeConversations({ uid_1: docId, uid_2: user.id }))
+    // setUserUid(user.data.uid)
     // console.log(user)
   }
-
+  // console.log(user.conversations[user.conversations.length - 1])
   const initGroup = (group) => {
+    setGroupFromTagsId(group.data.groupId)
     dispatch(getRealTimeConversationsGroups(group.data))
     setCurrentConversationName(group.data.conversationName)
     setCurrentConversationUsernames(group.data.conversationMembers)
@@ -316,20 +337,21 @@ const HomePage = (props) => {
     setChatGroup(true)
   }
 
-  const sendMessage = (e) => {
+  const sendMessage = async (e) => {
     e.preventDefault()
     const messageObject = {
-      user_uid_1: currentUser.uid, //dùng uid
-      user_uid_2: userUid,
+      user_uid_1: docId, //dùng uid
+      user_uid_2: currentChatId,
       message: message,
       haveReply: replyMessage ? true : false,
       replyMessage: replyMessage
     }
+    console.log(messageObject)
     if (message) {
       dispatch(createMessage(messageObject))
-        .then(() => {
-          setMessage('')
-        })
+      .then(() => {
+        setMessage('')
+      })
     }
     setReplyMessage("")
   }
@@ -345,7 +367,8 @@ const HomePage = (props) => {
       conversationName: currentConversationName,
       currentConversationUsernames: currentConversationUsernames,
       profileImage: profileImageUrl,
-      senderName: currentUser.displayName
+      senderName: currentUser.displayName,
+      groupId: groupFromTagsId
     }
     // console.log(messageObject)
     if (message) {
@@ -371,14 +394,16 @@ const HomePage = (props) => {
     setMessage(message + emojiObject.emoji)
   };
 
-  const handleReplyMess = (id) => {
+  const handleReplyMess = (e, id) => {
     // console.log("reply")
+    e.preventDefault()
     db.collection("conversations").doc(id).get().then((doc) => {
       setReplyMessage(doc.data().message)
     })
   }
 
-  const handleReplyMessGroup = (id) => {
+  const handleReplyMessGroup = (e, id) => {
+    e.preventDefault()
     db.collection("conversationsGroup").doc(id).get().then((doc) => {
       setReplyMessage(doc.data().message)
     })
@@ -455,7 +480,9 @@ const HomePage = (props) => {
       conversationName: converName,
       createdAt: new Date(),
       conversationMembers: tags,
-      adminGroup: docId
+      adminGroup: docId,
+      groupId: tagsId.join(""),
+      groupImage: "https://ddo0fzhfvians.cloudfront.net/uploads/icons/png/3492900171545197272-512.png"
     })
     setOpen2(false)
   }
@@ -503,6 +530,7 @@ const HomePage = (props) => {
   }
 
   const handleImageAsFile = (e) => {
+    e.preventDefault()
     const image = e.target.files[0]
     setImageAsFile(imageAsFile => image)
   }
@@ -526,9 +554,11 @@ const HomePage = (props) => {
           })
         })
     })
+    setOpen5(false)
   }
 
   const handleShowEmojis = (e, id) => {
+    e.preventDefault()
     setOpen6(!open6)
     setCurrentMessageEmoji(e.currentTarget.id)
 
@@ -648,9 +678,11 @@ const HomePage = (props) => {
           <div>
             {
               newCurrentFriendList && newCurrentFriendList.map((user) => {
-                return (
-                  <User id={user.id} key={user.data.uid} user={user.data} onClick={initChat} />
-                )
+                if(user.id != docId){
+                  return (
+                    <User chatGroup={chatGroup} currentChatId={currentChatId} id={user.id} key={user.data.uid} user={user} onClick={initChat} />
+                  )
+                }
               })
             }
           </div>
@@ -661,7 +693,7 @@ const HomePage = (props) => {
                 if (group.data.user_uids.includes(docId)) {
                   return (
                     <div>
-                      <UserGroups groupImageUrl={group.data.groupImage} group={group} userDocIds={group.data.user_uids} id={group.id} userGroups={group.data} onClick={initGroup} />
+                      <UserGroups currentGroupId={currentGroupId} chatGroup={chatGroup} groupImageUrl={group.data.groupImage} group={group} userDocIds={group.data.user_uids} id={group.id} userGroups={group.data} onClick={initGroup} />
                       <div className={classes.root3}>
                         <Modal
                           open={open3}
@@ -855,9 +887,9 @@ const HomePage = (props) => {
               (chatStarted && !chatGroup) ?
                 user.conversations && user.conversations.map((conver) => {
                   return (
-                    <div style={{ textAlign: conver.conver.user_uid_1 == currentUser.uid ? 'right' : "left" }}>
+                    <div style={{ textAlign: conver.conver.user_uid_1 == docId ? 'right' : "left" }}>
                       {
-                        conver.conver.user_uid_1 == currentUser.uid ?
+                        conver.conver.user_uid_1 == docId ?
                           (<div className="maindiv" style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", zIndex: 9999 }}>
                             {(open6 && (currentMessageEmoji && currentMessageEmoji == conver.id)) ? (
                               <div className="emojiContainer">
@@ -873,8 +905,8 @@ const HomePage = (props) => {
                             <div>
                               <div className="maindiv" key={conver.id} className="messageContainerCurrent">
                                 <div className="hide" id={conver.id} onClick={(e) => handleShowEmojis(e, conver.id)}>{emoji.getUnicode("grinning")}</div>
-                                <FontAwesomeIcon className="hide" onClick={() => handleReplyMess(conver.id)} icon={faReply} />
-                                <div className={conver.conver.user_uid_1 == currentUser.uid ? "messageStyle" : "messageStyleWhite"} >
+                                <FontAwesomeIcon className="hide" onClick={(e) => handleReplyMess(e, conver.id)} icon={faReply} />
+                                <div className={conver.conver.user_uid_1 == docId ? "messageStyle" : "messageStyleWhite"} >
                                   {conver.conver.haveReply ? (
                                     <div className="chatReplyMessage">
                                       {conver.conver.replyMessage}
@@ -903,7 +935,7 @@ const HomePage = (props) => {
                               ) : null}
                               <div>
                                 <div className="maindiv" className="messageContainer">
-                                  <div className={conver.conver.user_uid_1 == currentUser.uid ? "messageStyle" : "messageStyleWhite"} >
+                                  <div className={conver.conver.user_uid_1 == docId ? "messageStyle" : "messageStyleWhite"} >
                                     {conver.conver.haveReply ? (
                                       <div className="chatReplyMessage">
                                         {conver.conver.replyMessage}
@@ -911,7 +943,7 @@ const HomePage = (props) => {
                                     ) : null}
                                     {conver.conver.message}
                                   </div>
-                                  <FontAwesomeIcon className="hide" onClick={() => handleReplyMess(conver.id)} icon={faReply} />
+                                  <FontAwesomeIcon className="hide" onClick={(e) => handleReplyMess(e, conver.id)} icon={faReply} />
                                   <div className="hide" id={conver.id} onClick={(e) => handleShowEmojis(e, conver.id)}>{emoji.getUnicode("grinning")}</div>
                                 </div>
                                 <div className="emojiMessage" style={{ position: "absolute", left: "1%", marginTop: -16 }}>{conver.conver.emojiSingle}</div>
@@ -944,7 +976,7 @@ const HomePage = (props) => {
                                 <div className="messageSenderRight">{conver.conver.senderName}</div>
                                 <div className="messageContainerCurrent">
                                   <div className="hide" id={conver.id} onClick={(e) => handleShowEmojis(e, conver.id)}>{emoji.getUnicode("grinning")}</div>
-                                  <FontAwesomeIcon className="hide" onClick={() => handleReplyMessGroup(conver.id)} icon={faReply} />
+                                  <FontAwesomeIcon className="hide" onClick={(e) => handleReplyMessGroup(e, conver.id)} icon={faReply} />
                                   <div className={conver.conver.sender == docId ? "messageStyle" : "messageStyleWhite"} >
                                     {conver.conver.haveReply ? (
                                       <div className="chatReplyMessage">
@@ -957,7 +989,7 @@ const HomePage = (props) => {
                                     <img src={conver.conver.profileImage} alt="" />
                                   </div>
                                 </div>
-                                <div className="emojiWrapper" style={{ display: "flex", flexDirection: "row", position: "absolute", right: "3%", marginTop: 70 }}>
+                                <div className="emojiWrapper" style={{ display: "flex", flexDirection: "row", position: "absolute", right: "3%", marginTop: conver.conver.replyMessage ? 100 : 70 }}>
                                   {conver.conver.emojiMultiple && Object.keys(conver.conver.emojiMultiple).map(function (key, index) {
                                     return (
                                       <div style={{ display: "flex", flexDirection: "row" }}>
@@ -999,10 +1031,10 @@ const HomePage = (props) => {
                                       ) : null}
                                       {conver.conver.message}
                                     </div>
-                                    <FontAwesomeIcon className="hide" onClick={() => handleReplyMessGroup(conver.id)} icon={faReply} />
+                                    <FontAwesomeIcon className="hide" onClick={(e) => handleReplyMessGroup(e, conver.id)} icon={faReply} />
                                     <div className="hide" id={conver.id} onClick={(e) => handleShowEmojis(e, conver.id)}>{emoji.getUnicode("grinning")}</div>
                                   </div>
-                                  <div className="emojiWrapper" style={{ display: "flex", flexDirection: "row", position: "absolute", left: "3%", marginTop: 70 }}>
+                                  <div className="emojiWrapper" style={{ display: "flex", flexDirection: "row", position: "absolute", left: "3%", marginTop: conver.conver.replyMessage ? 100 : 70 }}>
                                     {conver.conver.emojiMultiple && Object.keys(conver.conver.emojiMultiple).map(function (key, index) {
                                       return (
                                         <div style={{ display: "flex", flexDirection: "row" }}>
@@ -1057,7 +1089,7 @@ const HomePage = (props) => {
                   </Modal>
                   <div>
                     <FontAwesomeIcon className="icon" onClick={() => setOpen(true)} icon={faSmile} />
-                    <FontAwesomeIcon className="icon" onClick={chatGroup ? sendMessageConversation : sendMessage} icon={faPaperPlane} />
+                    <FontAwesomeIcon className="icon" onClick={chatGroup ? (e) => sendMessageConversation(e) : (e) => sendMessage(e)} icon={faPaperPlane} />
                   </div>
                   {/* <Button className="button" onClick={() => setOpen(true)}>Emo</Button>
                   <Button className="button" onClick={chatGroup ? sendMessageConversation : sendMessage}>Send</Button> */}
@@ -1069,8 +1101,8 @@ const HomePage = (props) => {
         <div className="side-dashboard">
           <div className="upper">
             <div style={{ position: "relative", top: "10%" }}>
-              <div style={{ color: "white", fontSize: 25 }}><strong>{currentUser.displayName}</strong></div>
-              <div style={{ color: "grey", fontSize: 15 }}><strong>{currentUser.email}</strong></div>
+              <div style={{ color: "white", fontSize: 25 }}><strong>{`${currentUserInfo.firstName} ${currentUserInfo.lastName}`}</strong></div>
+              <div style={{ color: "grey", fontSize: 15 }}><strong>{currentUserInfo.email}</strong></div>
             </div>
             <img
               src={profileImageUrl}
@@ -1098,26 +1130,28 @@ const HomePage = (props) => {
               </div>
               <div>
                 {newCurrentFriendList && newCurrentFriendList.map((friend) => {
-                  return (
-                    <div>
-                      <div className="friend-info">
-                        <img
-                          src={friend.data.profileImage}
-                          style={{
-                            width: 40,
-                            height: 40,
-                            borderRadius: 20,
-                          }}
-                        />
-                        <div style={{ marginLeft: 15 }} className="name">
-                          {friend.data.firstName} {friend.data.lastName}
+                  if(friend.id != docId){
+                    return (
+                      <div>
+                        <div className="friend-info">
+                          <img
+                            src={friend.data.profileImage}
+                            style={{
+                              width: 40,
+                              height: 40,
+                              borderRadius: 20,
+                            }}
+                          />
+                          <div style={{ marginLeft: 15 }} className="name">
+                            {friend.data.firstName} {friend.data.lastName}
+                          </div>
+                          {/* <div onClick={(e) => handleRemoveFriend(e)}>
+                            <FontAwesomeIcon icon={faTimesCircle} />
+                          </div> */}
                         </div>
-                        {/* <div onClick={(e) => handleRemoveFriend(e)}>
-                          <FontAwesomeIcon icon={faTimesCircle} />
-                        </div> */}
                       </div>
-                    </div>
-                  )
+                    )
+                  }
                 })}
               </div>
             </div>
@@ -1128,7 +1162,7 @@ const HomePage = (props) => {
             </div> */}
 
             <div onClick={(e) => handleLogout(e)} className="logout hover">
-              <strong style={{ marginLeft: 20 }}>Logout</strong>
+              <strong onClick={(e) => handleLogout(e)} style={{ marginLeft: 20 }}>Logout</strong>
             </div>
           </div>
         </div>

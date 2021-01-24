@@ -37,7 +37,7 @@ const Login = () => {
       history.push("/")
     }
     catch {
-      setError("Failed to login")
+      setError("Failed to login. Please check your password or username and try again")
     }
     setLoading(false)
   }

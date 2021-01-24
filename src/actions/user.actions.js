@@ -59,32 +59,25 @@ export const createMessageGroup = (messageObject) =>{
 export const getRealTimeConversations = (user) =>{
   return async (dispatch) => {
     db.collection("conversations")
-    .where('user_uid_1', 'in', [user.uid_1, user.uid_2])
+    .where('user_uid_2', 'in', [user.uid_1, user.uid_2])
+    // .where('user_uid_2', 'in', [user.uid_2, user.uid_1])
     .orderBy("createdAt", "asc")
     .onSnapshot((snapShot) => {
       const conversations = []
       //doc.data() -> vao 1 document
-      snapShot.docs.map((doc) => {
+      snapShot.forEach((doc) => {
         //nếu như conversation của 2 người match, 1 người là ng gửi và ng kia nhận được 
         // thì mới push vào conversation
-        if((doc.data().user_uid_1 == user.uid_1 && doc.data().user_uid_2 == user.uid_2)
+        if((doc.data().user_uid_1 === user.uid_1 && doc.data().user_uid_2 === user.uid_2)
         ||
-        (doc.data().user_uid_1 == user.uid_2 && doc.data().user_uid_2 == user.uid_1)){
+        (doc.data().user_uid_1 === user.uid_2 && doc.data().user_uid_2 === user.uid_1)){
           conversations.push({id: doc.id, conver: doc.data()})
         }
-
-        if(conversations.length > 0){
-          dispatch({
-            type: userConstants.GET_REALTIME_MESSAGES,
-            payload: { conversations }
-          })
-        }
-        else{
-          dispatch({
-            type: `${userConstants.GET_REALTIME_MESSAGES}_FAILURE`,
-            payload: { conversations }
-          })
-        }
+        // console.log(conversations)
+      })
+      dispatch({
+        type: userConstants.GET_REALTIME_MESSAGES,
+        payload: { conversations }
       })
     })
   }
@@ -93,7 +86,7 @@ export const getRealTimeConversations = (user) =>{
 export const getRealTimeConversationsGroups = (userGroups) => {
   return async (dispatch) => {
     db.collection("conversationsGroup")
-      .where("conversationName", "==", userGroups.conversationName)
+      .where("groupId", "==", userGroups.groupId)
       .orderBy("createdAt", "asc")
       .onSnapshot((snapShot)=>{
         const conversationsGroup = []
@@ -102,18 +95,11 @@ export const getRealTimeConversationsGroups = (userGroups) => {
           // if(userGroups.user_uids.includes(doc.data().sender)){
             conversationsGroup.push({id: doc.id, conver: doc.data()})
           // }
-          if(conversationsGroup.length > 0){
-            dispatch({
-              type: userConstants.GET_REALTIME_MESSAGES_GROUP,
-              payload: { conversationsGroup }
-            })
-          }
-          else{
-            dispatch({
-              type: `${userConstants.GET_REALTIME_MESSAGES_GROUP}_FAILURE`,
-              payload: { conversationsGroup }
-            })
-          }
+          
+        })
+        dispatch({
+          type: userConstants.GET_REALTIME_MESSAGES_GROUP,
+          payload: { conversationsGroup }
         })
         // console.log(userGroups.user_uids)
         // console.log(conversationsGroup)

@@ -50,10 +50,9 @@
   color: white;
   flex-direction: column;
   overflow: scroll;
-  overflow: hidden;
+  overflow-x: hidden;
   /* justify-content: center; */
   /* align-items: center; */
-
 }
 
 .friend-info:hover {
@@ -137,9 +136,15 @@
 .userlist{
   height: 80%;
   overflow: scroll;
-  overflow: hidden;
+  overflow-x: hidden;
   width: 80%;
 }
+
+::-webkit-scrollbar {
+  width: 0px;
+  background:transparent
+}
+
 .user-card{
   display: flex;
   flex-direction: row;

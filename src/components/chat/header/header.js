@@ -12,7 +12,7 @@ const Header = () => {
   
   const [docId, setDocId] = useState()
   const [invalidate, setInvalidate] = useState(true)
-  
+  const [currentUserInfo, setCurrentUserInfo] = useState({})
   useEffect(() => {
     if(invalidate){
       db.collection("users").where("uid", "==", currentUser.uid)
@@ -29,6 +29,14 @@ const Header = () => {
       })
   }, [docId]);
   
+  useEffect(() => {
+    db.collection("users").doc(docId).onSnapshot((doc)=>{
+      if(doc.data()){
+        setCurrentUserInfo(doc.data())
+      }
+    })
+  }, [docId]);
+
   async function handleLogout(e){
     setError('')
 
@@ -60,7 +68,7 @@ const Header = () => {
             }     
         </div>
           <div style={{margin: '20px 0', color: '#fff', fontWeight: 'bold'}}>
-            {currentUser ? `Welcome ${currentUser.displayName}` : ''}
+            {currentUser ? `Welcome ${currentUserInfo.firstName} ${currentUserInfo.lastName}` : ''}
           </div>
         <ul className="menu">
             {/* {
