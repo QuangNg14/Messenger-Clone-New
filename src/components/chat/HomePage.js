@@ -989,7 +989,7 @@ const HomePage = (props) => {
                                     <img src={conver.conver.profileImage} alt="" />
                                   </div>
                                 </div>
-                                <div className="emojiWrapper" style={{ display: "flex", flexDirection: "row", position: "absolute", right: "3%", marginTop: conver.conver.replyMessage ? 100 : 70 }}>
+                                <div className="emojiWrapper" style={{ display: "flex", flexDirection: "row", position: "absolute", right: "3%", marginTop: conver.conver.replyMessage ? 100 : 35 }}>
                                   {conver.conver.emojiMultiple && Object.keys(conver.conver.emojiMultiple).map(function (key, index) {
                                     return (
                                       <div style={{ display: "flex", flexDirection: "row" }}>
@@ -1034,7 +1034,7 @@ const HomePage = (props) => {
                                     <FontAwesomeIcon className="hide" onClick={(e) => handleReplyMessGroup(e, conver.id)} icon={faReply} />
                                     <div className="hide" id={conver.id} onClick={(e) => handleShowEmojis(e, conver.id)}>{emoji.getUnicode("grinning")}</div>
                                   </div>
-                                  <div className="emojiWrapper" style={{ display: "flex", flexDirection: "row", position: "absolute", left: "3%", marginTop: conver.conver.replyMessage ? 100 : 70 }}>
+                                  <div className="emojiWrapper" style={{ display: "flex", flexDirection: "row", position: "absolute", left: "3%", marginTop: conver.conver.replyMessage ? 100 : 35 }}>
                                     {conver.conver.emojiMultiple && Object.keys(conver.conver.emojiMultiple).map(function (key, index) {
                                       return (
                                         <div style={{ display: "flex", flexDirection: "row" }}>
